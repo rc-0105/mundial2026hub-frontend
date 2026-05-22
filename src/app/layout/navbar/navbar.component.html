@@ -1,0 +1,10 @@
+<nav>
+  <span>Mundial 2026 Hub</span>
+  <a routerLink="/agenda" routerLinkActive="active">Agenda</a>
+  <a routerLink="/partidos" routerLinkActive="active">Partidos</a>
+  <a routerLink="/pollas" routerLinkActive="active">Pollas</a>
+  <a routerLink="/notificaciones" routerLinkActive="active">Notificaciones</a>
+  <a routerLink="/reportes" routerLinkActive="active">Reportes</a>
+  <span>{{ auth.currentUser()?.nombre }}</span>
+  <button (click)="logout()">Cerrar sesión</button>
+</nav>
