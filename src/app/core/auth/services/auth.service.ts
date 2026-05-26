@@ -56,4 +56,13 @@ export class AuthService {
       this._authUser.set(updated);
     }
   }
+
+  updateProfile(nombre: string): void {
+    const user = this._authUser();
+    if (user) {
+      const updated: AuthResponse = { ...user, nombre };
+      this.storage.setUser(updated);
+      this._authUser.set(updated);
+    }
+  }
 }

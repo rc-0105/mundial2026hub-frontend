@@ -40,6 +40,26 @@ export const routes: Routes = [
           import('./features/partidos/partidos.component').then(m => m.PartidosComponent),
       },
       {
+        path: 'partidos/:id',
+        loadComponent: () =>
+          import('./features/partidos/partido-detalle/partido-detalle.component').then(m => m.PartidoDetalleComponent),
+      },
+      {
+        path: 'partidos/:id/en-vivo',
+        loadComponent: () =>
+          import('./features/partidos/partido-en-vivo/partido-en-vivo.component').then(m => m.PartidoEnVivoComponent),
+      },
+      {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./features/perfil/perfil.component').then(m => m.PerfilComponent),
+      },
+      {
+        path: 'preferencias',
+        loadComponent: () =>
+          import('./features/preferencias/preferencias.component').then(m => m.PreferenciasComponent),
+      },
+      {
         path: 'pollas',
         loadComponent: () =>
           import('./features/pollas/pollas.component').then(m => m.PollasComponent),
