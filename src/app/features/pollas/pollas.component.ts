@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, DestroyRef } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { PollasService } from '../../core/services/pollas.service';
@@ -118,6 +118,12 @@ import { Polla, PollaMiembro, PartidoDisponible, Pronostico, PronosticoRequest }
                         <div class="match-info" style="margin-bottom: 0.75rem;">
                           <span>{{ p.fechaHora | date:'dd/MM/yyyy HH:mm' }}</span>
                           <span>{{ p.estadio }}, {{ p.ciudad }}</span>
+                        </div>
+
+                        <div class="countdown-bar">
+                          @if (countdowns()[pid]; as cd) {
+                            <span class="countdown-timer" [class.countdown-urgent]="cd.startsWith('0h')">Cierre en: {{ cd }}</span>
+                          }
                         </div>
 
                         @if (prono) {
@@ -288,11 +294,37 @@ import { Polla, PollaMiembro, PartidoDisponible, Pronostico, PronosticoRequest }
     }
     .btn-predict:hover:not(:disabled) { background: var(--primary-dark); }
     .btn-predict:disabled { opacity: 0.5; cursor: not-allowed; }
+    .countdown-bar {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+    .countdown-timer {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      font-weight: 500;
+      background: var(--gray-100);
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-sm);
+    }
+    .countdown-urgent {
+      color: #dc2626;
+      background: #fef2f2;
+      font-weight: 700;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
   `]
 })
+const MINUTOS_CIERRE = 30;
+
 export class PollasComponent {
   private readonly pollasService = inject(PollasService);
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly createForm = this.fb.nonNullable.group({
     nombre: ['', [Validators.required, Validators.maxLength(100)]],
@@ -317,6 +349,12 @@ export class PollasComponent {
   readonly formGolesVisitante = signal<Record<number, number>>({});
   readonly predictLoading = signal<Record<number, boolean>>({});
   readonly predictError = signal<Record<number, string>>({});
+  readonly countdowns = signal<Record<number, string>>({});
+
+  constructor() {
+    const interval = setInterval(() => this.actualizarCountdowns(), 1000);
+    this.destroyRef.onDestroy(() => clearInterval(interval));
+  }
 
   crear(): void {
     if (this.createForm.invalid) return;
@@ -370,6 +408,26 @@ export class PollasComponent {
         this.joinLoading.set(false);
       }
     });
+  }
+
+  private actualizarCountdowns(): void {
+    const partidos = this.partidosDisponibles();
+    if (!partidos || partidos.length === 0) return;
+    const now = Date.now();
+    const result: Record<number, string> = {};
+    for (const p of partidos) {
+      const deadline = new Date(p.fechaHora).getTime() - MINUTOS_CIERRE * 60 * 1000;
+      const diff = deadline - now;
+      if (diff <= 0) {
+        result[p.idPartido] = 'Cerrando...';
+      } else {
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        result[p.idPartido] = `${h}h ${m}m ${s}s`;
+      }
+    }
+    this.countdowns.set(result);
   }
 
   private cargarPartidosYPronosticos(idPolla: number): void {
