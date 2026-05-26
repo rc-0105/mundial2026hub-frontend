@@ -3,25 +3,25 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
-import { Partido, PartidoDetalle } from '../models/partido.model';
+import { PartidoApiResponse, PartidoDetalle } from '../models/partido.model';
 
 @Injectable({ providedIn: 'root' })
 export class PartidosService {
   private readonly http = inject(HttpClient);
 
-  getPartidos(): Observable<ApiResponse<Partido[]>> {
-    return this.http.get<ApiResponse<Partido[]>>(`${environment.apiUrl}/partidos`);
+  getPartidos(): Observable<PartidoApiResponse> {
+    return this.http.get<PartidoApiResponse>(`${environment.apiUrl}/partidos`);
   }
 
   getPartido(id: number): Observable<ApiResponse<PartidoDetalle>> {
-    return this.http.get<ApiResponse<PartidoDetalle>>(`${environment.apiUrl}/partidos/${id}`);
+    return this.http.get<ApiResponse<PartidoDetalle>>(`${environment.apiUrl}/partidos/${id}/detalles`);
   }
 
-  getEventosPartido(id: number): Observable<ApiResponse<PartidoDetalle>> {
-    return this.http.get<ApiResponse<PartidoDetalle>>(`${environment.apiUrl}/partidos/${id}/eventos`);
+  getPartidoEnVivo(id: number): Observable<ApiResponse<PartidoDetalle>> {
+    return this.http.get<ApiResponse<PartidoDetalle>>(`${environment.apiUrl}/partidos/${id}/en-vivo`);
   }
 
-  getAgenda(): Observable<ApiResponse<Partido[]>> {
-    return this.http.get<ApiResponse<Partido[]>>(`${environment.apiUrl}/agenda`);
+  getAgenda(): Observable<PartidoApiResponse> {
+    return this.http.get<PartidoApiResponse>(`${environment.apiUrl}/agenda`);
   }
 }

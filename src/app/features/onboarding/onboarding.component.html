@@ -83,9 +83,9 @@
                 Agregar
               </button>
             </div>
-            @if (ciudadesInteres().length > 0) {
+            @if (ciudadesFavoritas().length > 0) {
               <div class="tag-list">
-                @for (c of ciudadesInteres(); track c) {
+                @for (c of ciudadesFavoritas(); track c) {
                   <span class="tag">
                     Ciudad #{{ c }}
                     <button type="button" class="tag-remove" (click)="quitarCiudad(c)">×</button>
@@ -116,9 +116,9 @@
                 Agregar
               </button>
             </div>
-            @if (estadiosInteres().length > 0) {
+            @if (estadiosFavoritos().length > 0) {
               <div class="tag-list">
-                @for (e of estadiosInteres(); track e) {
+                @for (e of estadiosFavoritos(); track e) {
                   <span class="tag">
                     Estadio #{{ e }}
                     <button type="button" class="tag-remove" (click)="quitarEstadio(e)">×</button>
@@ -135,17 +135,18 @@
             <h2>Canales de notificación</h2>
             <p class="step-desc">Elegí cómo querés recibir alertas del torneo</p>
             <div class="channels">
-              @for (ch of canalesNotificacion(); track ch.tipo) {
+              @for (canal of canalesDisponibles; track canal) {
                 <label class="channel-item">
-                  <input 
-                    type="checkbox" 
-                    [(ngModel)]="ch.activo" 
-                    [name]="'ch_' + ch.tipo"
+                  <input
+                    type="checkbox"
+                    [checked]="canalActivo(canal)"
+                    (change)="toggleCanal(canal)"
+                    [name]="'ch_' + canal"
                     [disabled]="loading()"
                   />
-                  <span class="channel-label">{{ labelCanal(ch.tipo) }}</span>
+                  <span class="channel-label">{{ labelCanal(canal) }}</span>
                   <span class="channel-desc">
-                    @switch(ch.tipo) {
+                    @switch(canal) {
                       @case('EMAIL') { <span>Recibí resúmenes en tu correo</span> }
                       @case('SMS') { <span>Alertas por mensaje de texto</span> }
                       @case('PUSH') { <span>Notificaciones en tiempo real</span> }
@@ -171,24 +172,24 @@
               </div>
               <div class="summary-section">
                 <h3>Ciudades de interés</h3>
-                @if (ciudadesInteres().length > 0) {
-                  <p>{{ ciudadesInteres().length }} ciudad(es) agregada(s)</p>
+                @if (ciudadesFavoritas().length > 0) {
+                  <p>{{ ciudadesFavoritas().length }} ciudad(es) agregada(s)</p>
                 } @else {
                   <p class="hint">Sin ciudades</p>
                 }
               </div>
               <div class="summary-section">
                 <h3>Estadios de interés</h3>
-                @if (estadiosInteres().length > 0) {
-                  <p>{{ estadiosInteres().length }} estadio(s) agregado(s)</p>
+                @if (estadiosFavoritos().length > 0) {
+                  <p>{{ estadiosFavoritos().length }} estadio(s) agregado(s)</p>
                 } @else {
                   <p class="hint">Sin estadios</p>
                 }
               </div>
               <div class="summary-section">
                 <h3>Canales de notificación</h3>
-                @if (canalesActivos() > 0) {
-                  <p>{{ canalesActivos() }} canal(es) activo(s)</p>
+                @if (canalesActivos().length > 0) {
+                  <p>{{ canalesActivos().length }} canal(es) activo(s)</p>
                 } @else {
                   <p class="hint">Sin canales activos</p>
                 }

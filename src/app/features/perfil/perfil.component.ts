@@ -37,8 +37,8 @@ import { AuthService } from '../../core/auth/services/auth.service';
               <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                 @if (avatarPreview()) {
                   <img [src]="avatarPreview()" alt="Avatar" class="avatar-img" />
-                } @else if (profile()?.avatar) {
-                  <img [src]="profile()?.avatar" alt="Avatar" class="avatar-img" />
+                } @else if (profile()?.avatarUrl) {
+                  <img [src]="profile()?.avatarUrl" alt="Avatar" class="avatar-img" />
                 } @else {
                   <div class="avatar-placeholder">{{ profile()?.nombre?.charAt(0)?.toUpperCase() }}</div>
                 }
@@ -153,26 +153,18 @@ export class PerfilComponent implements OnInit {
     }
 
     this.saving.set(true);
-    this.usuarioService.updateProfile({ nombre: this.nombre, avatar: this.avatarPreview() }).subscribe({
+    const request: import('../../core/models/usuario.model').UpdateProfileRequest = {
+      nombre: this.nombre,
+      avatarUrl: this.avatarPreview(),
+      ...(this.passwordNueva ? { password: this.passwordNueva } : {}),
+    };
+    this.usuarioService.updateProfile(request).subscribe({
       next: () => {
         this.authService.updateProfile(this.nombre);
-        if (this.passwordActual && this.passwordNueva) {
-          this.usuarioService.updatePassword({ passwordActual: this.passwordActual, passwordNueva: this.passwordNueva }).subscribe({
-            next: () => {
-              this.saving.set(false);
-              this.successMessage.set('Perfil y contraseña actualizados.');
-              this.passwordActual = '';
-              this.passwordNueva = '';
-            },
-            error: () => {
-              this.saving.set(false);
-              this.error.set('Error al actualizar la contraseña. Verifique su contraseña actual.');
-            }
-          });
-        } else {
-          this.saving.set(false);
-          this.successMessage.set('Perfil actualizado correctamente.');
-        }
+        this.saving.set(false);
+        this.successMessage.set(this.passwordNueva ? 'Perfil y contraseña actualizados.' : 'Perfil actualizado correctamente.');
+        this.passwordActual = '';
+        this.passwordNueva = '';
       },
       error: () => {
         this.saving.set(false);

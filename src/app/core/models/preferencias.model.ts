@@ -1,18 +1,24 @@
 export interface PreferenciasUsuario {
-  seleccionesFavoritas: number[];
-  ciudadesInteres: number[];
-  estadiosInteres: number[];
-  canalesNotificacion: NotificacionChannel[];
-}
-
-export interface NotificacionChannel {
-  tipo: 'EMAIL' | 'SMS' | 'PUSH';
-  activo: boolean;
+  idPreferencia: number;
+  seleccionesFavoritas: string;
+  ciudadesFavoritas: string;
+  estadiosFavoritos: string;
+  canalesNotificacion: string;
+  onboardingCompletado: boolean;
+  pasoOnboarding: number;
 }
 
 export interface UpdatePreferenciasRequest {
-  seleccionesFavoritas: number[];
-  ciudadesInteres: number[];
-  estadiosInteres: number[];
-  canalesNotificacion: { tipo: string; activo: boolean }[];
+  seleccionesFavoritas?: string;
+  ciudadesFavoritas?: string;
+  estadiosFavoritos?: string;
+  canalesNotificacion?: string;
+}
+
+export interface OnboardingRequest {
+  paso: number;
+  seleccionesFavoritas?: string;
+  ciudadesFavoritas?: string;
+  estadiosFavoritos?: string;
+  canalesNotificacion?: string;
 }
