@@ -36,3 +36,19 @@ export interface PartidoDisponible {
   fase: string;
   estado: string;
 }
+
+export interface PronosticoRequest {
+  golesLocal: number | null;
+  golesVisitante: number | null;
+  ganadorPronosticado: 'LOCAL' | 'VISITANTE' | 'EMPATE';
+}
+
+export interface Pronostico {
+  idPronostico: number;
+  golesLocal: number | null;
+  golesVisitante: number | null;
+  ganadorPronosticado: 'LOCAL' | 'VISITANTE' | 'EMPATE';
+  partido: { idPartido: number };
+  fechaRegistro: string;
+  periodoCerrado: boolean;
+}

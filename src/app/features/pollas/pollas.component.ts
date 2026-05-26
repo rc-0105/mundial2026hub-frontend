@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { PollasService } from '../../core/services/pollas.service';
-import { Polla, PollaMiembro, PartidoDisponible } from '../../core/models/polla.model';
+import { Polla, PollaMiembro, PartidoDisponible, Pronostico, PronosticoRequest } from '../../core/models/polla.model';
 
 @Component({
   selector: 'app-pollas',
@@ -83,7 +83,7 @@ import { Polla, PollaMiembro, PartidoDisponible } from '../../core/models/polla.
               <p class="success-desc">
                 <strong>{{ m.polla.nombre }}</strong> — Código: {{ m.polla.codigoInvitacion }}
               </p>
-              <p class="success-hint">Ahora puedes pronosticar los partidos disponibles.</p>
+              <p class="success-hint">Pronostica los partidos disponibles a continuación.</p>
             </div>
 
             @if (partidosDisponibles(); as partidos) {
@@ -97,20 +97,66 @@ import { Polla, PollaMiembro, PartidoDisponible } from '../../core/models/polla.
                 } @else {
                   <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                     @for (p of partidos; track p.idPartido) {
+                      @let pid = p.idPartido;
+                      @let prono = pronosticosMap()[pid];
                       <div class="match-card" style="padding: 1rem;">
                         <div class="match-header" style="margin-bottom: 0.5rem;">
                           <span class="phase-badge">{{ p.fase }}</span>
                           <span class="status-badge status-programado">{{ p.estado }}</span>
                         </div>
-                        <div class="match-teams" style="margin-bottom: 0.5rem; gap: 1rem;">
+                        <div class="match-teams" style="margin-bottom: 0.75rem; gap: 1rem;">
                           <div class="team team-local"><span class="team-name" style="font-size: 1rem;">{{ p.seleccionLocal }}</span></div>
-                          <div class="score-display" style="font-size: 1.25rem;"><span class="vs">VS</span></div>
+                          <div class="score-display" style="font-size: 1.25rem;">
+                            @if (prono) {
+                              <span class="predicted-score">{{ prono.golesLocal ?? '?' }} - {{ prono.golesVisitante ?? '?' }}</span>
+                            } @else {
+                              <span class="vs">VS</span>
+                            }
+                          </div>
                           <div class="team team-visitante"><span class="team-name" style="font-size: 1rem;">{{ p.seleccionVisitante }}</span></div>
                         </div>
-                        <div class="match-info" style="margin-bottom: 0;">
+                        <div class="match-info" style="margin-bottom: 0.75rem;">
                           <span>{{ p.fechaHora | date:'dd/MM/yyyy HH:mm' }}</span>
                           <span>{{ p.estadio }}, {{ p.ciudad }}</span>
                         </div>
+
+                        @if (prono) {
+                          <div class="prediction-result">
+                            <span class="prediction-badge">
+                              Pronosticaste: {{ prono.golesLocal ?? '?' }} - {{ prono.golesVisitante ?? '?' }} ({{ ganadorLabel(prono.ganadorPronosticado) }})
+                            </span>
+                            @if (prono.periodoCerrado) {
+                              <span class="period-closed">Período cerrado</span>
+                            }
+                          </div>
+                        } @else {
+                          <div class="predict-form">
+                            <div class="predict-inputs">
+                              <div class="predict-group">
+                                <label>Local</label>
+                                <input type="number" min="0" max="99" placeholder="0"
+                                  [value]="formGolesLocal()[pid] ?? ''"
+                                  (input)="setGolesLocal(pid, $event)"
+                                  [disabled]="predictLoading()[pid]" />
+                              </div>
+                              <span class="predict-sep">-</span>
+                              <div class="predict-group">
+                                <label>Visitante</label>
+                                <input type="number" min="0" max="99" placeholder="0"
+                                  [value]="formGolesVisitante()[pid] ?? ''"
+                                  (input)="setGolesVisitante(pid, $event)"
+                                  [disabled]="predictLoading()[pid]" />
+                              </div>
+                            </div>
+                            @if (predictError()[pid]; as err) {
+                              <div class="field-error" style="text-align: center; margin-top: 0.25rem;">{{ err }}</div>
+                            }
+                            <button class="btn-predict" (click)="pronosticar(m.polla.idPolla, pid)"
+                              [disabled]="predictLoading()[pid] || formGolesLocal()[pid] === undefined || formGolesVisitante()[pid] === undefined">
+                              @if (predictLoading()[pid]) { Guardando... } @else { Pronosticar }
+                            </button>
+                          </div>
+                        }
                       </div>
                     }
                   </div>
@@ -166,6 +212,82 @@ import { Polla, PollaMiembro, PartidoDisponible } from '../../core/models/polla.
     }
     .btn-copy:hover { background: var(--primary-dark); }
     .success-hint { font-size: 0.8rem; color: var(--gray-400); }
+    .predicted-score {
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--primary-dark);
+    }
+    .prediction-result {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .prediction-badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: #166534;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .period-closed {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      font-style: italic;
+    }
+    .predict-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .predict-inputs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+    .predict-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+    }
+    .predict-group label {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      font-weight: 500;
+    }
+    .predict-group input {
+      width: 4rem;
+      text-align: center;
+      padding: 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .predict-sep {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--gray-300);
+      margin-top: 1.1rem;
+    }
+    .btn-predict {
+      align-self: center;
+      padding: 0.4rem 1.25rem;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-predict:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-predict:disabled { opacity: 0.5; cursor: not-allowed; }
   `]
 })
 export class PollasComponent {
@@ -189,6 +311,12 @@ export class PollasComponent {
   readonly joinError = signal<string | null>(null);
   readonly miembro = signal<PollaMiembro | null>(null);
   readonly partidosDisponibles = signal<PartidoDisponible[] | null>(null);
+
+  readonly pronosticosMap = signal<Record<number, Pronostico>>({});
+  readonly formGolesLocal = signal<Record<number, number>>({});
+  readonly formGolesVisitante = signal<Record<number, number>>({});
+  readonly predictLoading = signal<Record<number, boolean>>({});
+  readonly predictError = signal<Record<number, string>>({});
 
   crear(): void {
     if (this.createForm.invalid) return;
@@ -217,6 +345,7 @@ export class PollasComponent {
     this.joinError.set(null);
     this.miembro.set(null);
     this.partidosDisponibles.set(null);
+    this.pronosticosMap.set({});
 
     this.pollasService.unirseAPolla(codigo).subscribe({
       next: res => {
@@ -225,10 +354,7 @@ export class PollasComponent {
         this.joinLoading.set(false);
 
         const idPolla = res.data.polla.idPolla;
-        this.pollasService.obtenerPartidosDisponibles(idPolla).subscribe({
-          next: partidosRes => this.partidosDisponibles.set(partidosRes.data),
-          error: () => this.partidosDisponibles.set([])
-        });
+        this.cargarPartidosYPronosticos(idPolla);
       },
       error: err => {
         const msg = err.error?.message || err.message || '';
@@ -246,12 +372,86 @@ export class PollasComponent {
     });
   }
 
+  private cargarPartidosYPronosticos(idPolla: number): void {
+    this.pollasService.obtenerPartidosDisponibles(idPolla).subscribe({
+      next: partidosRes => this.partidosDisponibles.set(partidosRes.data),
+      error: () => this.partidosDisponibles.set([])
+    });
+    this.pollasService.obtenerPronosticos(idPolla).subscribe({
+      next: pronosRes => {
+        const map: Record<number, Pronostico> = {};
+        for (const prono of pronosRes.data) {
+          map[prono.partido.idPartido] = prono;
+        }
+        this.pronosticosMap.set(map);
+      }
+    });
+  }
+
   copiarCodigo(): void {
     const polla = this.pollaCreada();
     if (!polla) return;
     navigator.clipboard.writeText(polla.codigoInvitacion).then(() => {
       this.copiado.set(true);
       setTimeout(() => this.copiado.set(false), 2000);
+    });
+  }
+
+  setGolesLocal(partidoId: number, event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.formGolesLocal.update(m => ({ ...m, [partidoId]: val === '' ? undefined : Number(val) }));
+    this.predictError.update(m => { const n = { ...m }; delete n[partidoId]; return n; });
+  }
+
+  setGolesVisitante(partidoId: number, event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.formGolesVisitante.update(m => ({ ...m, [partidoId]: val === '' ? undefined : Number(val) }));
+    this.predictError.update(m => { const n = { ...m }; delete n[partidoId]; return n; });
+  }
+
+  ganadorLabel(ganador: 'LOCAL' | 'VISITANTE' | 'EMPATE'): string {
+    switch (ganador) {
+      case 'LOCAL': return 'Local gana';
+      case 'VISITANTE': return 'Visitante gana';
+      case 'EMPATE': return 'Empate';
+    }
+  }
+
+  pronosticar(idPolla: number, idPartido: number): void {
+    const golesLocal = this.formGolesLocal()[idPartido];
+    const golesVisitante = this.formGolesVisitante()[idPartido];
+
+    if (golesLocal === undefined || golesVisitante === undefined) {
+      this.predictError.update(m => ({ ...m, [idPartido]: 'Ingresa el marcador completo.' }));
+      return;
+    }
+
+    let ganador: 'LOCAL' | 'VISITANTE' | 'EMPATE';
+    if (golesLocal > golesVisitante) {
+      ganador = 'LOCAL';
+    } else if (golesVisitante > golesLocal) {
+      ganador = 'VISITANTE';
+    } else {
+      ganador = 'EMPATE';
+    }
+
+    this.predictLoading.update(m => ({ ...m, [idPartido]: true }));
+    this.predictError.update(m => { const n = { ...m }; delete n[idPartido]; return n; });
+
+    const request: PronosticoRequest = { golesLocal, golesVisitante, ganadorPronosticado: ganador };
+
+    this.pollasService.registrarPronostico(idPolla, idPartido, request).subscribe({
+      next: res => {
+        this.pronosticosMap.update(m => ({ ...m, [idPartido]: res.data }));
+        this.formGolesLocal.update(m => { const n = { ...m }; delete n[idPartido]; return n; });
+        this.formGolesVisitante.update(m => { const n = { ...m }; delete n[idPartido]; return n; });
+        this.predictLoading.update(m => { const n = { ...m }; delete n[idPartido]; return n; });
+      },
+      error: err => {
+        const msg = err.error?.message || err.message || '';
+        this.predictError.update(m => ({ ...m, [idPartido]: msg || 'Error al registrar pronóstico.' }));
+        this.predictLoading.update(m => { const n = { ...m }; delete n[idPartido]; return n; });
+      }
     });
   }
 }
