@@ -1,47 +1,49 @@
-import { Component, inject, signal } from '@angular/core';
-import { RouterLink, Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../core/auth/services/auth.service';
-import { AuthRequest } from '../../../core/auth/models/auth-request.model';
 
 @Component({
   selector: 'app-login',
-  imports: [RouterLink, FormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login.component.html',
+  styleUrl: './login.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
-  private readonly authService = inject(AuthService);
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly showRegisteredBanner = signal(
+    this.route.snapshot.queryParamMap.get('registered') === 'true'
+  );
 
-  correo = '';
-  password = '';
+  readonly form = this.fb.nonNullable.group({
+    correo: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]],
+  });
 
-  login(): void {
-    this.error.set(null);
-    if (!this.correo || !this.password) {
-      this.error.set('Correo y contraseña son requeridos.');
-      return;
-    }
+  onSubmit(): void {
+    if (this.form.invalid || this.isLoading()) return;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
 
-    this.loading.set(true);
-    const request: AuthRequest = { correo: this.correo, password: this.password };
-
-    this.authService.login(request).subscribe({
-      next: (response: any) => {
-        this.loading.set(false);
+    this.auth.login(this.form.getRawValue()).subscribe({
+      next: (response) => {
         if (response.requiereOnboarding) {
           this.router.navigate(['/onboarding']);
         } else {
-          this.router.navigate(['/agenda']);
+          this.router.navigateByUrl(response.redirectUrl || '/agenda');
         }
       },
-      error: (err: any) => {
-        this.loading.set(false);
-        this.error.set('Correo o contraseña inválidos.');
-      }
+      error: () => {
+        this.isLoading.set(false);
+        this.errorMessage.set('Credenciales incorrectas o cuenta bloqueada.');
+      },
     });
   }
 }

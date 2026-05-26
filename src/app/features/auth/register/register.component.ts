@@ -1,69 +1,63 @@
-import { Component, inject, signal } from '@angular/core';
-import { RouterLink, Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { RegisterRequest } from '../../../core/auth/models/register-request.model';
+import { passwordStrengthValidator, passwordMatchValidator } from './register.validators';
 
 @Component({
   selector: 'app-register',
-  imports: [RouterLink, FormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './register.component.html',
+  styleUrl: './register.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterComponent {
-  private readonly authService = inject(AuthService);
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly success = signal(false);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
 
-  nombre = '';
-  correo = '';
-  password = '';
-  confirmPassword = '';
+  readonly form = this.fb.nonNullable.group(
+    {
+      nombre: ['', [Validators.required, Validators.maxLength(100)]],
+      correo: ['', [Validators.required, Validators.email, Validators.maxLength(150)]],
+      password: ['', [Validators.required, passwordStrengthValidator]],
+      confirmPassword: ['', [Validators.required]],
+    },
+    { validators: passwordMatchValidator }
+  );
 
-  private validarPassword(p: string): boolean {
-    return p.length >= 8 && /[A-Z]/.test(p) && /\d/.test(p);
+  onSubmit(): void {
+    if (this.form.invalid || this.isLoading()) return;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    const { nombre, correo, password } = this.form.getRawValue();
+    let zonaHoraria: string | undefined;
+    try { zonaHoraria = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { /* omit if unavailable */ }
+
+    const request: RegisterRequest = { nombre, correo, password, zonaHoraria };
+
+    this.auth.register(request).subscribe({
+      next: () => this.router.navigate(['/login'], { queryParams: { registered: true } }),
+      error: (err: HttpErrorResponse) => {
+        this.isLoading.set(false);
+        if (this.isCorreoDuplicado(err)) {
+          this.form.get('correo')!.setErrors({ duplicado: true });
+        } else {
+          this.errorMessage.set('Ocurrió un error. Intentá de nuevo más tarde.');
+        }
+      },
+    });
   }
 
-  register(): void {
-    this.error.set(null);
-
-    if (!this.nombre || !this.correo || !this.password) {
-      this.error.set('Todos los campos son requeridos.');
-      return;
-    }
-
-    if (!this.validarPassword(this.password)) {
-      this.error.set('La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número.');
-      return;
-    }
-
-    if (this.password !== this.confirmPassword) {
-      this.error.set('Las contraseñas no coinciden.');
-      return;
-    }
-
-    this.loading.set(true);
-    const request: RegisterRequest = {
-      nombre: this.nombre,
-      correo: this.correo,
-      password: this.password
-    };
-
-    this.authService.register(request).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.success.set(true);
-        setTimeout(() => {
-          this.router.navigate(['/login']);
-        }, 2000);
-      },
-      error: (err: any) => {
-        this.loading.set(false);
-        const msg = err?.error?.message || 'Error al registrarse. Intenta nuevamente.';
-        this.error.set(msg);
-      }
-    });
+  private isCorreoDuplicado(err: HttpErrorResponse): boolean {
+    const msg: string = err.error?.message ?? '';
+    const code: string = err.error?.data?.code ?? '';
+    return msg.includes('CORREO_DUPLICADO') || code === 'CORREO_DUPLICADO';
   }
 }
