@@ -1,4 +1,69 @@
-<div>
+<div class="register-container">
   <h1>Crear cuenta</h1>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+
+    @if (errorMessage()) {
+      <p class="form-error">{{ errorMessage() }}</p>
+    }
+
+    <div class="field" [class.error]="form.get('nombre')!.touched && form.get('nombre')!.invalid">
+      <label for="nombre">Nombre</label>
+      <input id="nombre" type="text" formControlName="nombre" autocomplete="name" />
+      @if (form.get('nombre')!.touched) {
+        @if (form.get('nombre')!.hasError('required')) {
+          <span>El nombre es obligatorio.</span>
+        } @else if (form.get('nombre')!.hasError('maxlength')) {
+          <span>Máximo 100 caracteres.</span>
+        }
+      }
+    </div>
+
+    <div class="field" [class.error]="form.get('correo')!.touched && form.get('correo')!.invalid">
+      <label for="correo">Correo electrónico</label>
+      <input id="correo" type="email" formControlName="correo" autocomplete="email" />
+      @if (form.get('correo')!.touched) {
+        @if (form.get('correo')!.hasError('required')) {
+          <span>El correo es obligatorio.</span>
+        } @else if (form.get('correo')!.hasError('email')) {
+          <span>Ingresá un correo válido.</span>
+        } @else if (form.get('correo')!.hasError('maxlength')) {
+          <span>Máximo 150 caracteres.</span>
+        } @else if (form.get('correo')!.hasError('duplicado')) {
+          <span>Este correo ya está registrado.</span>
+        }
+      }
+    </div>
+
+    <div class="field" [class.error]="form.get('password')!.touched && form.get('password')!.invalid">
+      <label for="password">Contraseña</label>
+      <input id="password" type="password" formControlName="password" autocomplete="new-password" />
+      @if (form.get('password')!.touched) {
+        @if (form.get('password')!.hasError('required')) {
+          <span>La contraseña es obligatoria.</span>
+        } @else if (form.get('password')!.hasError('minlength')) {
+          <span>Mínimo 8 caracteres.</span>
+        } @else if (form.get('password')!.hasError('uppercase')) {
+          <span>Debe contener al menos una mayúscula.</span>
+        } @else if (form.get('password')!.hasError('digit')) {
+          <span>Debe contener al menos un número.</span>
+        }
+      }
+    </div>
+
+    <div class="field" [class.error]="form.get('confirmPassword')!.touched && form.hasError('passwordMismatch')">
+      <label for="confirmPassword">Confirmar contraseña</label>
+      <input id="confirmPassword" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+      @if (form.get('confirmPassword')!.touched && form.hasError('passwordMismatch')) {
+        <span>Las contraseñas no coinciden.</span>
+      }
+    </div>
+
+    <button type="submit" [disabled]="form.invalid || isLoading()">
+      {{ isLoading() ? 'Cargando…' : 'Registrarse' }}
+    </button>
+
+  </form>
+
   <a routerLink="/login">¿Ya tenés cuenta? Iniciá sesión</a>
 </div>
