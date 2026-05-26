@@ -1,12 +1,11 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DatePipe } from '@angular/common';
 import { PartidosService } from '../../../core/services/partidos.service';
-import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/partido.model';
+import { PartidoDetalle, EventoPartido, Sustitucion } from '../../../core/models/partido.model';
 
 @Component({
   selector: 'app-partido-detalle',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink],
   template: `
     <div class="page-container">
       <a routerLink="/partidos" style="display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 1.5rem; color: var(--gray-500); font-size: 0.9rem; font-weight: 500;">
@@ -30,21 +29,21 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
         <div class="match-hero">
           <div class="hero-teams">
             <div class="hero-team">
-              <span class="hero-team-name">{{ p.seleccionLocal.nombre }}</span>
+              <span class="hero-team-name">{{ p.seleccionLocal }}</span>
             </div>
             <div class="hero-score">
-              <span class="hero-score-val">{{ p.marcadorLocal ?? '-' }}</span>
+              <span class="hero-score-val">{{ p.golesLocal ?? '-' }}</span>
               <span class="hero-score-sep">-</span>
-              <span class="hero-score-val">{{ p.marcadorVisitante ?? '-' }}</span>
+              <span class="hero-score-val">{{ p.golesVisitante ?? '-' }}</span>
             </div>
             <div class="hero-team hero-team-right">
-              <span class="hero-team-name">{{ p.seleccionVisitante.nombre }}</span>
+              <span class="hero-team-name">{{ p.seleccionVisitante }}</span>
             </div>
           </div>
           <div class="hero-meta">
             <span class="hero-phase">{{ p.fase }}</span>
-            <span>{{ p.fecha | date:'dd/MM/yyyy HH:mm' }}</span>
-            <span>{{ p.estadio.nombre }}, {{ p.estadio.ciudad }}</span>
+            <span>{{ p.fechaHoraLocalizada }}</span>
+            <span>{{ p.estadio }}, {{ p.ciudad }}</span>
           </div>
         </div>
 
@@ -54,11 +53,11 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
             <div style="display: flex; align-items: center; gap: 1rem;">
               <span style="font-weight: 700; font-size: 1rem; min-width: 3rem; text-align: right;">{{ p.posesionLocal }}%</span>
               <div style="flex: 1; height: 8px; background: var(--gray-100); border-radius: 4px; overflow: hidden;">
-                <div style="height: 100%; width: {{ p.posesionLocal }}%; background: var(--primary); border-radius: 4px; transition: width 0.5s;"></div>
+                <div [style.width.%]="p.posesionLocal" style="height: 100%; background: var(--primary); border-radius: 4px;"></div>
               </div>
               <span style="font-size: 0.85rem; color: var(--gray-400); min-width: 4rem; text-align: center;">Posesión</span>
               <div style="flex: 1; height: 8px; background: var(--gray-100); border-radius: 4px; overflow: hidden;">
-                <div style="height: 100%; width: {{ p.posesionVisitante }}%; background: var(--gray-500); border-radius: 4px; float: right; transition: width 0.5s;"></div>
+                <div [style.width.%]="p.posesionVisitante" style="height: 100%; background: var(--gray-500); border-radius: 4px; float: right;"></div>
               </div>
               <span style="font-weight: 700; font-size: 1rem; min-width: 3rem;">{{ p.posesionVisitante }}%</span>
             </div>
@@ -69,14 +68,11 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
           <div class="detail-section">
             <h2 class="section-title">Goles</h2>
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-              @for (g of goles(); track g.minuto + g.jugador) {
+              @for (g of goles(); track g.idEvento) {
                 <div class="event-row" [class]="'event-' + g.equipo.toLowerCase()">
                   <span class="event-minute">{{ g.minuto }}'</span>
                   <span class="event-player">{{ g.jugador }}</span>
-                  @if (g.asistencia) {
-                    <span style="font-size: 0.8rem; color: var(--gray-400);">(asistencia: {{ g.asistencia }})</span>
-                  }
-                  <span class="event-team">{{ g.equipo === 'LOCAL' ? p.seleccionLocal.nombre : p.seleccionVisitante.nombre }}</span>
+                  <span class="event-team">{{ g.equipo === 'LOCAL' ? p.seleccionLocal : p.seleccionVisitante }}</span>
                 </div>
               }
             </div>
@@ -94,7 +90,7 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
                   <span class="card-pill" [class]="t.tipo === 'TARJETA_ROJA' ? 'card-red' : 'card-yellow'">
                     {{ t.tipo === 'TARJETA_ROJA' ? 'ROJA' : 'AMARILLA' }}
                   </span>
-                  <span class="event-team">{{ t.equipo === 'LOCAL' ? p.seleccionLocal.nombre : p.seleccionVisitante.nombre }}</span>
+                  <span class="event-team">{{ t.equipo === 'LOCAL' ? p.seleccionLocal : p.seleccionVisitante }}</span>
                 </div>
               }
             </div>
@@ -111,7 +107,7 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
                   <span style="font-weight: 500;">Sale: {{ s.sale }}</span>
                   <span style="color: var(--primary); font-weight: 700;">→</span>
                   <span style="font-weight: 500;">Entra: {{ s.entra }}</span>
-                  <span class="event-team">{{ s.equipo === 'LOCAL' ? p.seleccionLocal.nombre : p.seleccionVisitante.nombre }}</span>
+                  <span class="event-team">{{ s.equipo === 'LOCAL' ? p.seleccionLocal : p.seleccionVisitante }}</span>
                 </div>
               }
             </div>
@@ -122,13 +118,9 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
   `,
   styles: [`
     .match-hero {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 2.5rem 2rem;
-      margin-bottom: 1.5rem;
-      box-shadow: var(--shadow);
-      background: linear-gradient(135deg, var(--surface) 0%, var(--gray-50) 100%);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 2.5rem 2rem; margin-bottom: 1.5rem;
+      box-shadow: var(--shadow); background: linear-gradient(135deg, var(--surface) 0%, var(--gray-50) 100%);
     }
     .hero-teams { display: flex; align-items: center; justify-content: center; gap: 2rem; margin-bottom: 1.25rem; }
     .hero-team { flex: 1; }
@@ -140,20 +132,9 @@ import { PartidoDetalle, GolInfo, Sustitucion } from '../../../core/models/parti
     .hero-score-sep { font-size: 2.5rem; color: var(--gray-300); }
     .hero-meta { display: flex; justify-content: center; gap: 1.5rem; font-size: 0.85rem; color: var(--gray-400); flex-wrap: wrap; }
     .hero-phase { font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; }
-    .detail-section {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 1.5rem;
-      margin-bottom: 1rem;
-      box-shadow: var(--shadow-sm);
-    }
+    .detail-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); }
     .section-title { font-size: 1rem; font-weight: 600; color: var(--gray-900); margin: 0 0 1rem; }
-    .event-row {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.6rem 0.85rem; border-radius: var(--radius);
-      font-size: 0.9rem;
-    }
+    .event-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.85rem; border-radius: var(--radius); font-size: 0.9rem; }
     .event-local { background: var(--primary-light); }
     .event-visitante { background: var(--gray-50); }
     .event-sub { background: var(--gray-50); }
@@ -172,8 +153,8 @@ export class PartidoDetalleComponent implements OnInit {
   readonly partido = signal<PartidoDetalle | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  readonly goles = signal<GolInfo[]>([]);
-  readonly tarjetas = signal<any[]>([]);
+  readonly goles = signal<EventoPartido[]>([]);
+  readonly tarjetas = signal<EventoPartido[]>([]);
   readonly sustituciones = signal<Sustitucion[]>([]);
 
   ngOnInit(): void {
@@ -186,8 +167,9 @@ export class PartidoDetalleComponent implements OnInit {
     this.partidosService.getPartido(id).subscribe({
       next: res => {
         this.partido.set(res.data);
-        this.goles.set(res.data.eventos.filter(e => e.tipo === 'GOL').map(e => ({ minuto: e.minuto, jugador: e.jugador, equipo: e.equipo, asistencia: null })));
-        this.tarjetas.set(res.data.eventos.filter(e => e.tipo === 'TARJETA_AMARILLA' || e.tipo === 'TARJETA_ROJA'));
+        const eventos = res.data.eventos ?? [];
+        this.goles.set(eventos.filter(e => e.tipo === 'GOL'));
+        this.tarjetas.set(eventos.filter(e => e.tipo === 'TARJETA_AMARILLA' || e.tipo === 'TARJETA_ROJA'));
         this.sustituciones.set(res.data.sustituciones ?? []);
         this.loading.set(false);
       },

@@ -1,13 +1,12 @@
 import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
 import { PartidosService } from '../../core/services/partidos.service';
 import { Partido } from '../../core/models/partido.model';
 
 @Component({
   selector: 'app-partidos',
-  imports: [RouterLink, FormsModule, DatePipe],
+  imports: [RouterLink, FormsModule],
   template: `
     <div class="page-container">
       <h1>Calendario de Partidos</h1>
@@ -56,24 +55,24 @@ import { Partido } from '../../core/models/partido.model';
                 </div>
                 <div class="match-teams">
                   <div class="team team-local">
-                    <span class="team-name">{{ p.seleccionLocal.nombre }}</span>
+                    <span class="team-name">{{ p.seleccionLocal }}</span>
                   </div>
                   <div class="score-display">
                     @if (p.estado === 'PROGRAMADO') {
                       <span class="vs">VS</span>
                     } @else {
-                      <span class="score-val">{{ p.marcadorLocal ?? '-' }}</span>
+                      <span class="score-val">{{ p.golesLocal ?? '-' }}</span>
                       <span class="score-sep">-</span>
-                      <span class="score-val">{{ p.marcadorVisitante ?? '-' }}</span>
+                      <span class="score-val">{{ p.golesVisitante ?? '-' }}</span>
                     }
                   </div>
                   <div class="team team-visitante">
-                    <span class="team-name">{{ p.seleccionVisitante.nombre }}</span>
+                    <span class="team-name">{{ p.seleccionVisitante }}</span>
                   </div>
                 </div>
                 <div class="match-info">
-                  <span>{{ p.fecha | date:'dd/MM/yyyy HH:mm' }}</span>
-                  <span>{{ p.estadio.nombre }}, {{ p.estadio.ciudad }}</span>
+                  <span>{{ p.fechaHoraLocalizada }}</span>
+                  <span>{{ p.estadio }}, {{ p.ciudad }}</span>
                 </div>
                 <div class="match-actions">
                   @if (p.estado === 'FINALIZADO' || p.estado === 'EN_JUEGO') {
@@ -119,7 +118,7 @@ export class PartidosComponent implements OnInit, OnDestroy {
         this.allPartidos.set(res.data);
         this.aplicarFiltros();
         this.loading.set(false);
-        this.staleData.set(false);
+        this.staleData.set(res.actualizacionPendiente);
       },
       error: () => {
         if (this.allPartidos().length === 0) this.loading.set(false);

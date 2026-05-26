@@ -1,7 +1,6 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PreferenciasService } from '../../core/services/preferencias.service';
-import { PreferenciasUsuario, NotificacionChannel } from '../../core/models/preferencias.model';
 
 @Component({
   selector: 'app-preferencias',
@@ -39,7 +38,7 @@ import { PreferenciasUsuario, NotificacionChannel } from '../../core/models/pref
             <h2>Ciudades de interés</h2>
             <p class="section-desc">Ciudades sede que te interesan</p>
             <div class="tag-list">
-              @for (c of ciudadesInteres(); track c) {
+              @for (c of ciudadesFavoritas(); track c) {
                 <span class="tag">
                   Ciudad #{{ c }}
                   <button type="button" class="tag-remove" (click)="quitarCiudad(c)">×</button>
@@ -56,7 +55,7 @@ import { PreferenciasUsuario, NotificacionChannel } from '../../core/models/pref
             <h2>Estadios de interés</h2>
             <p class="section-desc">Estadios que querés seguir</p>
             <div class="tag-list">
-              @for (e of estadiosInteres(); track e) {
+              @for (e of estadiosFavoritos(); track e) {
                 <span class="tag">
                   Estadio #{{ e }}
                   <button type="button" class="tag-remove" (click)="quitarEstadio(e)">×</button>
@@ -73,10 +72,10 @@ import { PreferenciasUsuario, NotificacionChannel } from '../../core/models/pref
             <h2>Canales de notificación</h2>
             <p class="section-desc">Activá o desactivá los canales por los que querés recibir alertas</p>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-              @for (ch of canalesNotificacion(); track ch.tipo; let i = $index) {
+              @for (canal of canalesDisponibles; track canal) {
                 <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.5rem 0;">
-                  <input type="checkbox" [(ngModel)]="ch.activo" [name]="'ch_' + ch.tipo" style="width: 1.1rem; height: 1.1rem; accent-color: var(--primary); cursor: pointer;" />
-                  <span style="font-weight: 500; font-size: 0.95rem; color: var(--gray-700);">{{ labelCanal(ch.tipo) }}</span>
+                  <input type="checkbox" [checked]="canalActivo(canal)" (change)="toggleCanal(canal)" style="width: 1.1rem; height: 1.1rem; accent-color: var(--primary); cursor: pointer;" />
+                  <span style="font-weight: 500; font-size: 0.95rem; color: var(--gray-700);">{{ labelCanal(canal) }}</span>
                 </label>
               }
             </div>
@@ -108,13 +107,11 @@ export class PreferenciasComponent implements OnInit {
   readonly successMessage = signal<string | null>(null);
 
   readonly seleccionesFavoritas = signal<number[]>([]);
-  readonly ciudadesInteres = signal<number[]>([]);
-  readonly estadiosInteres = signal<number[]>([]);
-  readonly canalesNotificacion = signal<NotificacionChannel[]>([
-    { tipo: 'EMAIL', activo: true },
-    { tipo: 'SMS', activo: false },
-    { tipo: 'PUSH', activo: false }
-  ]);
+  readonly ciudadesFavoritas = signal<number[]>([]);
+  readonly estadiosFavoritos = signal<number[]>([]);
+  readonly canalesActivos = signal<string[]>(['EMAIL']);
+
+  readonly canalesDisponibles = ['EMAIL', 'SMS', 'PUSH'];
 
   ngOnInit(): void {
     this.cargarPreferencias();
@@ -123,23 +120,26 @@ export class PreferenciasComponent implements OnInit {
   private cargarPreferencias(): void {
     this.preferenciasService.getPreferencias().subscribe({
       next: res => {
-        this.seleccionesFavoritas.set(res.data.seleccionesFavoritas);
-        this.ciudadesInteres.set(res.data.ciudadesInteres);
-        this.estadiosInteres.set(res.data.estadiosInteres);
-        if (res.data.canalesNotificacion?.length) {
-          this.canalesNotificacion.set(res.data.canalesNotificacion);
-        }
+        this.seleccionesFavoritas.set(this.parseCsv(res.data.seleccionesFavoritas));
+        this.ciudadesFavoritas.set(this.parseCsv(res.data.ciudadesFavoritas));
+        this.estadiosFavoritos.set(this.parseCsv(res.data.estadiosFavoritos));
+        this.canalesActivos.set(
+          res.data.canalesNotificacion ? res.data.canalesNotificacion.split(',').map(s => s.trim()).filter(Boolean) : ['EMAIL']
+        );
         this.loading.set(false);
       },
       error: () => { this.loading.set(false); }
     });
   }
 
+  private parseCsv(csv: string): number[] {
+    if (!csv) return [];
+    return csv.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+  }
+
   agregarSeleccion(id: string): void {
     const n = Number(id);
-    if (n && !this.seleccionesFavoritas().includes(n)) {
-      this.seleccionesFavoritas.update(v => [...v, n]);
-    }
+    if (n && !this.seleccionesFavoritas().includes(n)) this.seleccionesFavoritas.update(v => [...v, n]);
   }
 
   quitarSeleccion(id: number): void {
@@ -148,24 +148,30 @@ export class PreferenciasComponent implements OnInit {
 
   agregarCiudad(id: string): void {
     const n = Number(id);
-    if (n && !this.ciudadesInteres().includes(n)) {
-      this.ciudadesInteres.update(v => [...v, n]);
-    }
+    if (n && !this.ciudadesFavoritas().includes(n)) this.ciudadesFavoritas.update(v => [...v, n]);
   }
 
   quitarCiudad(id: number): void {
-    this.ciudadesInteres.update(v => v.filter(c => c !== id));
+    this.ciudadesFavoritas.update(v => v.filter(c => c !== id));
   }
 
   agregarEstadio(id: string): void {
     const n = Number(id);
-    if (n && !this.estadiosInteres().includes(n)) {
-      this.estadiosInteres.update(v => [...v, n]);
-    }
+    if (n && !this.estadiosFavoritos().includes(n)) this.estadiosFavoritos.update(v => [...v, n]);
   }
 
   quitarEstadio(id: number): void {
-    this.estadiosInteres.update(v => v.filter(e => e !== id));
+    this.estadiosFavoritos.update(v => v.filter(e => e !== id));
+  }
+
+  canalActivo(canal: string): boolean {
+    return this.canalesActivos().includes(canal);
+  }
+
+  toggleCanal(canal: string): void {
+    this.canalesActivos.update(v =>
+      v.includes(canal) ? v.filter(c => c !== canal) : [...v, canal]
+    );
   }
 
   labelCanal(tipo: string): string {
@@ -179,19 +185,13 @@ export class PreferenciasComponent implements OnInit {
     this.saving.set(true);
 
     this.preferenciasService.updatePreferencias({
-      seleccionesFavoritas: this.seleccionesFavoritas(),
-      ciudadesInteres: this.ciudadesInteres(),
-      estadiosInteres: this.estadiosInteres(),
-      canalesNotificacion: this.canalesNotificacion().map(ch => ({ tipo: ch.tipo, activo: ch.activo }))
+      seleccionesFavoritas: this.seleccionesFavoritas().join(','),
+      ciudadesFavoritas: this.ciudadesFavoritas().join(','),
+      estadiosFavoritos: this.estadiosFavoritos().join(','),
+      canalesNotificacion: this.canalesActivos().join(','),
     }).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.successMessage.set('Preferencias guardadas correctamente.');
-      },
-      error: () => {
-        this.saving.set(false);
-        this.errorMessage.set('Error al guardar preferencias.');
-      }
+      next: () => { this.saving.set(false); this.successMessage.set('Preferencias guardadas correctamente.'); },
+      error: () => { this.saving.set(false); this.errorMessage.set('Error al guardar preferencias.'); }
     });
   }
 }
