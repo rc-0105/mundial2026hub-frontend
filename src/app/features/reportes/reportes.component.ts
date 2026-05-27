@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasApostado, AciertosUsuario } from '../../core/services/reportes.service';
+import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasApostado, AciertosUsuario, ActividadPeriodo } from '../../core/services/reportes.service';
 
 @Component({
   selector: 'app-reportes',
@@ -140,7 +140,7 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
         }
       </div>
 
-      <!-- Predicciones acertadas por usuario -->
+      <!-- Predicciones acertadas -->
       <div class="report-card">
         <h2>Predicciones acertadas por usuario</h2>
         <p class="section-desc">Porcentaje de aciertos de cada usuario, ordenado de mayor a menor precisión.</p>
@@ -185,9 +185,82 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
                     <td class="col-num">{{ e.totalPronosticosRegistrados }}</td>
                     <td class="col-num">{{ e.pronosticosAcertadosResultado }}</td>
                     <td class="col-num">{{ e.pronosticosAcertadosMarcadorExacto }}</td>
-                    <td class="col-pct">
-                      <span class="pct-badge" [style.background]="pctColor(e.porcentajeAcierto)">{{ e.porcentajeAcierto }}%</span>
-                    </td>
+                    <td class="col-pct"><span class="pct-badge" [style.background]="pctColor(e.porcentajeAcierto)">{{ e.porcentajeAcierto }}%</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </div>
+
+      <!-- Actividad por período -->
+      <div class="report-card">
+        <h2>Actividad por período</h2>
+        <p class="section-desc">Nuevos usuarios, sesiones, pollas creadas y pronósticos registrados, agrupados por semana o mes.</p>
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="granularidad">Agrupar por</label>
+            <select id="granularidad" [(ngModel)]="granularidad">
+              <option value="mensual">Mensual</option>
+              <option value="semanal">Semanal</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="actividadInicio">Fecha inicio</label>
+            <input id="actividadInicio" type="date" [(ngModel)]="actividadFechaInicio" />
+          </div>
+          <div class="filter-group">
+            <label for="actividadFin">Fecha fin</label>
+            <input id="actividadFin" type="date" [(ngModel)]="actividadFechaFin" />
+          </div>
+          <div class="filter-actions">
+            <button class="btn-primary" (click)="generarActividad()" [disabled]="actividadLoading()">
+              @if (actividadLoading()) { Generando... } @else { Generar reporte }
+            </button>
+            <button class="btn-outline" (click)="exportarActividadCsv()" [disabled]="!actividad()">Exportar CSV</button>
+          </div>
+        </div>
+        @if (actividadError()) { <div class="error">{{ actividadError() }}</div> }
+        @if (actividad(); as entries) {
+          @if (entries.length === 0) {
+            <div class="empty-state">No hay datos de actividad para el período seleccionado.</div>
+          } @else {
+            <div class="actividad-chart">
+              @for (e of entries; track e.periodo) {
+                <div class="periodo-bar">
+                  <div class="periodo-label">{{ formatPeriodo(e.periodo) }}</div>
+                  <div class="bar-row">
+                    <div class="bar-item">
+                      <div class="bar bar-users" [style.width.%]="barWidth(e.nuevosUsuariosRegistrados, entries, 'nuevosUsuariosRegistrados')"></div>
+                      <span class="bar-value">{{ e.nuevosUsuariosRegistrados }}</span>
+                    </div>
+                    <div class="bar-item">
+                      <div class="bar bar-sesiones" [style.width.%]="barWidth(e.sesionesIniciadas, entries, 'sesionesIniciadas')"></div>
+                      <span class="bar-value">{{ e.sesionesIniciadas }}</span>
+                    </div>
+                    <div class="bar-item">
+                      <div class="bar bar-pollas" [style.width.%]="barWidth(e.pollasCreadas, entries, 'pollasCreadas')"></div>
+                      <span class="bar-value">{{ e.pollasCreadas }}</span>
+                    </div>
+                    <div class="bar-item">
+                      <div class="bar bar-pronosticos" [style.width.%]="barWidth(e.pronosticosRegistrados, entries, 'pronosticosRegistrados')"></div>
+                      <span class="bar-value">{{ e.pronosticosRegistrados }}</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+            <table class="report-table">
+              <thead><tr><th>Período</th><th class="col-num">Nuevos usuarios</th><th class="col-num">Sesiones</th><th class="col-num">Pollas creadas</th><th class="col-num">Pronósticos</th></tr></thead>
+              <tbody>
+                @for (e of entries; track e.periodo) {
+                  <tr>
+                    <td class="col-periodo">{{ formatPeriodo(e.periodo) }}</td>
+                    <td class="col-num">{{ e.nuevosUsuariosRegistrados }}</td>
+                    <td class="col-num">{{ e.sesionesIniciadas }}</td>
+                    <td class="col-num">{{ e.pollasCreadas }}</td>
+                    <td class="col-num">{{ e.pronosticosRegistrados }}</td>
                   </tr>
                 }
               </tbody>
@@ -263,38 +336,25 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
     .col-date { white-space: nowrap; color: var(--gray-500); font-size: 0.8rem; }
     .col-count { color: var(--primary-dark); }
     .col-pct { text-align: center; width: 100px; }
+    .col-periodo { font-weight: 600; color: var(--gray-800); }
     .medal { font-size: 1.2rem; }
-    .badge-fase {
-      display: inline-block;
-      padding: 0.15rem 0.5rem;
-      font-size: 0.7rem;
-      font-weight: 700;
-      border-radius: var(--radius-sm);
-      background: #dbeafe;
-      color: #1e40af;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .aciertos-summary {
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-      padding: 1rem;
-      background: var(--gray-50);
-      border-radius: var(--radius);
-    }
+    .badge-fase { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.7rem; font-weight: 700; border-radius: var(--radius-sm); background: #dbeafe; color: #1e40af; text-transform: uppercase; letter-spacing: 0.04em; }
+    .aciertos-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: var(--radius); }
     .summary-item { display: flex; flex-direction: column; align-items: center; }
     .summary-value { font-size: 1.5rem; font-weight: 800; color: var(--gray-900); }
     .summary-label { font-size: 0.7rem; color: var(--gray-400); font-weight: 600; text-transform: uppercase; }
-    .pct-badge {
-      display: inline-block;
-      padding: 0.2rem 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 700;
-      border-radius: var(--radius-sm);
-      color: white;
-    }
+    .pct-badge { display: inline-block; padding: 0.2rem 0.5rem; font-size: 0.75rem; font-weight: 700; border-radius: var(--radius-sm); color: white; }
+    .actividad-chart { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+    .periodo-bar { display: flex; align-items: center; gap: 1rem; }
+    .periodo-label { font-size: 0.75rem; font-weight: 600; color: var(--gray-600); width: 90px; flex-shrink: 0; }
+    .bar-row { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+    .bar-item { display: flex; align-items: center; gap: 0.5rem; }
+    .bar { height: 8px; border-radius: 4px; min-width: 2px; transition: width 0.3s ease; }
+    .bar-users { background: #3b82f6; }
+    .bar-sesiones { background: #8b5cf6; }
+    .bar-pollas { background: #10b981; }
+    .bar-pronosticos { background: #f59e0b; }
+    .bar-value { font-size: 0.7rem; color: var(--gray-500); font-weight: 600; min-width: 24px; }
   `]
 })
 export class ReportesComponent {
@@ -325,6 +385,13 @@ export class ReportesComponent {
   aciertosFechaInicio = '';
   aciertosFechaFin = '';
 
+  readonly actividadLoading = signal(false);
+  readonly actividadError = signal<string | null>(null);
+  readonly actividad = signal<ActividadPeriodo[] | null>(null);
+  granularidad = 'mensual';
+  actividadFechaInicio = '';
+  actividadFechaFin = '';
+
   readonly totalPronosticos = computed(() => this.aciertos()?.reduce((s, e) => s + e.totalPronosticosRegistrados, 0) ?? 0);
   readonly totalAciertosResultado = computed(() => this.aciertos()?.reduce((s, e) => s + e.pronosticosAcertadosResultado, 0) ?? 0);
   readonly totalAciertosExacto = computed(() => this.aciertos()?.reduce((s, e) => s + e.pronosticosAcertadosMarcadorExacto, 0) ?? 0);
@@ -333,6 +400,15 @@ export class ReportesComponent {
     if (pct >= 70) return '#16a34a';
     if (pct >= 40) return '#ca8a04';
     return '#dc2626';
+  }
+
+  formatPeriodo(periodo: string): string {
+    return periodo.replace('T', ' ').substring(0, 16);
+  }
+
+  barWidth(value: number, entries: ActividadPeriodo[], key: keyof ActividadPeriodo): number {
+    const max = Math.max(...entries.map(e => Number(e[key])));
+    return max === 0 ? 0 : Math.round((value / max) * 100);
   }
 
   generarAdopcion(): void {
@@ -354,7 +430,7 @@ export class ReportesComponent {
       this.adopcionFechaFin ? `${this.adopcionFechaFin}T23:59:59Z` : undefined
     ).subscribe({
       next: csv => this.descargarCsv(csv, 'reporte-adopcion.csv'),
-      error: () => this.adopcionError.set('Error al exportar el reporte.')
+      error: () => this.adopcionError.set('Error al exportar.')
     });
   }
 
@@ -373,7 +449,7 @@ export class ReportesComponent {
     const idPolla = this.rankingIdPolla ? Number(this.rankingIdPolla) : undefined;
     this.reportesService.exportarRankingGeneralCsv(idPolla).subscribe({
       next: csv => this.descargarCsv(csv, 'reporte-ranking-general.csv'),
-      error: () => this.rankingError.set('Error al exportar el reporte.')
+      error: () => this.rankingError.set('Error al exportar.')
     });
   }
 
@@ -397,8 +473,8 @@ export class ReportesComponent {
       this.partidosFechaInicio ? `${this.partidosFechaInicio}T00:00:00Z` : undefined,
       this.partidosFechaFin ? `${this.partidosFechaFin}T23:59:59Z` : undefined
     ).subscribe({
-      next: csv => this.descargarCsv(csv, 'reporte-partidos-mas-apostados.csv'),
-      error: () => this.partidosError.set('Error al exportar el reporte.')
+      next: csv => this.descargarCsv(csv, 'reporte-partidos.csv'),
+      error: () => this.partidosError.set('Error al exportar.')
     });
   }
 
@@ -425,7 +501,32 @@ export class ReportesComponent {
       this.aciertosFechaFin ? `${this.aciertosFechaFin}T23:59:59Z` : undefined
     ).subscribe({
       next: csv => this.descargarCsv(csv, 'reporte-aciertos.csv'),
-      error: () => this.aciertosError.set('Error al exportar el reporte.')
+      error: () => this.aciertosError.set('Error al exportar.')
+    });
+  }
+
+  generarActividad(): void {
+    this.actividadLoading.set(true);
+    this.actividadError.set(null);
+    this.actividad.set(null);
+    this.reportesService.obtenerActividad(
+      this.granularidad,
+      this.actividadFechaInicio ? `${this.actividadFechaInicio}T00:00:00Z` : undefined,
+      this.actividadFechaFin ? `${this.actividadFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: res => { this.actividad.set(res.data); this.actividadLoading.set(false); },
+      error: () => { this.actividadError.set('Error al generar el reporte.'); this.actividadLoading.set(false); }
+    });
+  }
+
+  exportarActividadCsv(): void {
+    this.reportesService.exportarActividadCsv(
+      this.granularidad,
+      this.actividadFechaInicio ? `${this.actividadFechaInicio}T00:00:00Z` : undefined,
+      this.actividadFechaFin ? `${this.actividadFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: csv => this.descargarCsv(csv, 'reporte-actividad.csv'),
+      error: () => this.actividadError.set('Error al exportar.')
     });
   }
 
