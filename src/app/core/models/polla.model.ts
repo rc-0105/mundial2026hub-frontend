@@ -33,3 +33,11 @@ export interface EventoAuditoria {
   timestamp: string;
   idCorrelacion: string;
 }
+
+export interface PollaMiembroWinner {
+  idMiembro: number;
+  usuario: { idUsuario: number; nombre: string; correo: string };
+  puntaje: number;
+  premioDigital: string | null;
+  fechaUnion: string;
+}
