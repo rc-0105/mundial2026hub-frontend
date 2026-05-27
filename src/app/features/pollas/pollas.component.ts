@@ -1,11 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { DatePipe, SlicePipe } from '@angular/common';
 import { PollasService } from '../../core/services/pollas.service';
-import { Polla } from '../../core/models/polla.model';
+import { Polla, EventoAuditoria } from '../../core/models/polla.model';
 
 @Component({
   selector: 'app-pollas',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DatePipe, SlicePipe],
   template: `
     <div class="page-container">
       <h1>Pollas</h1>
@@ -73,6 +74,56 @@ import { Polla } from '../../core/models/polla.model';
             Eres el administrador de esta polla. Podrás finalizarla cuando termine el torneo.
           </p>
         </div>
+
+        <div class="audit-section">
+          <h2>Auditoría de pronósticos</h2>
+          <p class="section-desc">Todos los pronósticos registrados quedan almacenados de forma inmutable con sello de tiempo.</p>
+
+          <div class="audit-actions">
+            <button class="btn-outline" (click)="cargarAuditoria()" [disabled]="auditLoading()">
+              @if (auditLoading()) {
+                Cargando...
+              } @else {
+                Ver historial de auditoría
+              }
+            </button>
+          </div>
+
+          @if (auditEventos(); as eventos) {
+            <div class="audit-list">
+              @if (eventos.length === 0) {
+                <div class="audit-empty">
+                  No hay eventos de auditoría registrados para esta polla. Los pronósticos aparecerán aquí una vez que los miembros comiencen a registrar sus predicciones.
+                </div>
+              } @else {
+                <table class="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha/Hora</th>
+                      <th>Evento</th>
+                      <th>Detalle</th>
+                      <th>ID Correlación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (evento of eventos; track evento.idEvento) {
+                      <tr>
+                        <td class="audit-timestamp">{{ evento.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                        <td><span class="badge badge-audit">{{ evento.tipoEvento }}</span></td>
+                        <td class="audit-detail">{{ evento.detalle }}</td>
+                        <td class="audit-correlation">{{ evento.idCorrelacion | slice:0:8 }}...</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          }
+
+          @if (auditError()) {
+            <div class="error">{{ auditError() }}</div>
+          }
+        </div>
       }
     </div>
   `,
@@ -134,6 +185,76 @@ import { Polla } from '../../core/models/polla.model';
       background: var(--gray-50);
     }
     .success-hint { font-size: 0.8rem; color: var(--gray-400); margin-top: 1rem; }
+    .audit-section {
+      max-width: 800px;
+      margin-top: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      animation: fadeIn 0.4s ease;
+    }
+    .audit-section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; }
+    .audit-actions { margin: 1rem 0; }
+    .btn-outline {
+      padding: 0.5rem 1.25rem;
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+    .audit-empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--gray-400);
+      font-size: 0.9rem;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+    }
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+    }
+    .audit-table th {
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .audit-table td {
+      padding: 0.6rem 0.5rem;
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .audit-table tbody tr:hover { background: var(--gray-50); }
+    .audit-timestamp { white-space: nowrap; color: var(--gray-500); font-size: 0.8rem; }
+    .audit-detail { color: var(--gray-700); }
+    .audit-correlation { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--gray-400); }
+    .badge-audit {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      background: #fef3c7;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
   `]
 })
 export class PollasComponent {
@@ -149,6 +270,10 @@ export class PollasComponent {
   readonly pollaCreada = signal<Polla | null>(null);
   readonly copiado = signal(false);
   readonly enlaceCopiado = signal(false);
+
+  readonly auditLoading = signal(false);
+  readonly auditError = signal<string | null>(null);
+  readonly auditEventos = signal<EventoAuditoria[] | null>(null);
 
   crear(): void {
     if (this.form.invalid) return;
@@ -185,6 +310,26 @@ export class PollasComponent {
     navigator.clipboard.writeText(polla.enlaceInvitacion).then(() => {
       this.enlaceCopiado.set(true);
       setTimeout(() => this.enlaceCopiado.set(false), 2000);
+    });
+  }
+
+  cargarAuditoria(): void {
+    const polla = this.pollaCreada();
+    if (!polla) return;
+
+    this.auditLoading.set(true);
+    this.auditError.set(null);
+    this.auditEventos.set(null);
+
+    this.pollasService.obtenerAuditoriaDePolla(polla.idPolla).subscribe({
+      next: res => {
+        this.auditEventos.set(res.data);
+        this.auditLoading.set(false);
+      },
+      error: () => {
+        this.auditError.set('Error al cargar la auditoría. Intenta nuevamente.');
+        this.auditLoading.set(false);
+      }
     });
   }
 }
