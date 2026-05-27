@@ -1,10 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../core/services/reportes.service';
+import { DatePipe } from '@angular/common';
+import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasApostado } from '../../core/services/reportes.service';
 
 @Component({
   selector: 'app-reportes',
-  imports: [FormsModule],
+  imports: [FormsModule, DatePipe],
   template: `
     <div class="page-container">
       <h1>Reportes</h1>
@@ -14,7 +15,6 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
       <div class="report-card">
         <h2>Adopción de pollas</h2>
         <p class="section-desc">Comparación de usuarios que participan en pollas vs total de usuarios registrados.</p>
-
         <div class="filter-row">
           <div class="filter-group">
             <label for="adopcionInicio">Fecha inicio</label>
@@ -28,30 +28,15 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
             <button class="btn-primary" (click)="generarAdopcion()" [disabled]="adopcionLoading()">
               @if (adopcionLoading()) { Generando... } @else { Generar reporte }
             </button>
-            <button class="btn-outline" (click)="exportarAdopcionCsv()" [disabled]="!adopcionReporte()">
-              Exportar CSV
-            </button>
+            <button class="btn-outline" (click)="exportarAdopcionCsv()" [disabled]="!adopcionReporte()">Exportar CSV</button>
           </div>
         </div>
-
-        @if (adopcionError()) {
-          <div class="error">{{ adopcionError() }}</div>
-        }
-
+        @if (adopcionError()) { <div class="error">{{ adopcionError() }}</div> }
         @if (adopcionReporte(); as r) {
           <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-value">{{ r.totalUsuariosRegistrados }}</div>
-              <div class="stat-label">Usuarios registrados</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value">{{ r.totalUsuariosApostadores }}</div>
-              <div class="stat-label">Usuarios que apostaron</div>
-            </div>
-            <div class="stat-card stat-highlight">
-              <div class="stat-value">{{ r.porcentajeParticipacion }}%</div>
-              <div class="stat-label">Participación</div>
-            </div>
+            <div class="stat-card"><div class="stat-value">{{ r.totalUsuariosRegistrados }}</div><div class="stat-label">Usuarios registrados</div></div>
+            <div class="stat-card"><div class="stat-value">{{ r.totalUsuariosApostadores }}</div><div class="stat-label">Usuarios que apostaron</div></div>
+            <div class="stat-card stat-highlight"><div class="stat-value">{{ r.porcentajeParticipacion }}%</div><div class="stat-label">Participación</div></div>
           </div>
         }
       </div>
@@ -59,10 +44,7 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
       <!-- Ranking general -->
       <div class="report-card">
         <h2>Ranking general de pollas</h2>
-        <p class="section-desc">
-          Ranking consolidado de todos los usuarios con su puntaje total acumulado en todas las pollas.
-        </p>
-
+        <p class="section-desc">Ranking consolidado con puntaje total acumulado en todas las pollas.</p>
         <div class="filter-row">
           <div class="filter-group">
             <label for="idPolla">Filtrar por polla (ID)</label>
@@ -72,30 +54,16 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
             <button class="btn-primary" (click)="generarRanking()" [disabled]="rankingLoading()">
               @if (rankingLoading()) { Generando... } @else { Generar reporte }
             </button>
-            <button class="btn-outline" (click)="exportarRankingCsv()" [disabled]="!ranking()">
-              Exportar CSV
-            </button>
+            <button class="btn-outline" (click)="exportarRankingCsv()" [disabled]="!ranking()">Exportar CSV</button>
           </div>
         </div>
-
-        @if (rankingError()) {
-          <div class="error">{{ rankingError() }}</div>
-        }
-
+        @if (rankingError()) { <div class="error">{{ rankingError() }}</div> }
         @if (ranking(); as entries) {
           @if (entries.length === 0) {
             <div class="empty-state">No hay datos de ranking disponibles.</div>
           } @else {
-            <table class="ranking-table">
-              <thead>
-                <tr>
-                  <th class="col-pos">#</th>
-                  <th>Nombre</th>
-                  <th>Correo</th>
-                  <th class="col-num">Puntaje total</th>
-                  <th class="col-num">Pollas participadas</th>
-                </tr>
-              </thead>
+            <table class="report-table">
+              <thead><tr><th class="col-pos">#</th><th>Nombre</th><th>Correo</th><th class="col-num">Puntaje total</th><th class="col-num">Pollas</th></tr></thead>
               <tbody>
                 @for (e of entries; track e.idUsuario; let i = $index) {
                   <tr>
@@ -109,6 +77,61 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
                     <td class="col-email">{{ e.correo }}</td>
                     <td class="col-num">{{ e.puntajeTotalAcumulado }}</td>
                     <td class="col-num">{{ e.cantidadPollasParticipadas }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </div>
+
+      <!-- Partidos más apostados -->
+      <div class="report-card">
+        <h2>Partidos más apostados</h2>
+        <p class="section-desc">Partidos ordenados por cantidad de pronósticos recibidos.</p>
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="fase">Fase del torneo</label>
+            <select id="fase" [(ngModel)]="faseFiltro">
+              <option value="">Todas las fases</option>
+              <option value="GRUPOS">Grupos</option>
+              <option value="OCTAVOS">Octavos</option>
+              <option value="CUARTOS">Cuartos</option>
+              <option value="SEMIFINAL">Semifinal</option>
+              <option value="TERCER_PUESTO">Tercer puesto</option>
+              <option value="FINAL">Final</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="partidosInicio">Fecha inicio</label>
+            <input id="partidosInicio" type="date" [(ngModel)]="partidosFechaInicio" />
+          </div>
+          <div class="filter-group">
+            <label for="partidosFin">Fecha fin</label>
+            <input id="partidosFin" type="date" [(ngModel)]="partidosFechaFin" />
+          </div>
+          <div class="filter-actions">
+            <button class="btn-primary" (click)="generarPartidos()" [disabled]="partidosLoading()">
+              @if (partidosLoading()) { Generando... } @else { Generar reporte }
+            </button>
+            <button class="btn-outline" (click)="exportarPartidosCsv()" [disabled]="!partidos()">Exportar CSV</button>
+          </div>
+        </div>
+        @if (partidosError()) { <div class="error">{{ partidosError() }}</div> }
+        @if (partidos(); as entries) {
+          @if (entries.length === 0) {
+            <div class="empty-state">No hay partidos con pronósticos registrados.</div>
+          } @else {
+            <table class="report-table">
+              <thead><tr><th class="col-num">#</th><th>Partido</th><th>Fecha</th><th>Fase</th><th class="col-num">Pronósticos</th></tr></thead>
+              <tbody>
+                @for (e of entries; track e.idPartido; let i = $index) {
+                  <tr>
+                    <td class="col-num">{{ i + 1 }}</td>
+                    <td class="col-match">{{ e.seleccionLocal }} vs {{ e.seleccionVisitante }}</td>
+                    <td class="col-date">{{ e.fechaHora | date:'dd/MM/yyyy HH:mm' }}</td>
+                    <td><span class="badge-fase">{{ e.fase }}</span></td>
+                    <td class="col-num col-count">{{ e.totalPronosticos }}</td>
                   </tr>
                 }
               </tbody>
@@ -142,7 +165,7 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
     }
     .filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
     .filter-group label { font-size: 0.75rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; }
-    .filter-group input {
+    .filter-group input, .filter-group select {
       padding: 0.45rem 0.7rem;
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -165,61 +188,36 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../cor
     }
     .btn-outline:hover { background: var(--primary-light); }
     .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-top: 1.5rem;
-      animation: fadeIn 0.4s ease;
-    }
-    .stat-card {
-      text-align: center;
-      padding: 1.5rem 1rem;
-      background: var(--gray-50);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; animation: fadeIn 0.4s ease; }
+    .stat-card { text-align: center; padding: 1.5rem 1rem; background: var(--gray-50); border: 1px solid var(--border); border-radius: var(--radius); }
     .stat-highlight { background: var(--primary-light); border-color: var(--primary); }
     .stat-value { font-size: 2rem; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
     .stat-highlight .stat-value { color: var(--primary-dark); }
     .stat-label { font-size: 0.75rem; color: var(--gray-500); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.3rem; }
-    .empty-state {
-      margin-top: 1.5rem;
-      padding: 2rem;
-      text-align: center;
-      color: var(--gray-400);
-      background: var(--gray-50);
-      border-radius: var(--radius);
-      border: 1px dashed var(--border);
-    }
-    .ranking-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1.25rem;
-      animation: fadeIn 0.4s ease;
-    }
-    .ranking-table th {
-      text-align: left;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: var(--gray-400);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 0.6rem 0.5rem;
-      border-bottom: 2px solid var(--border);
-    }
-    .ranking-table td {
-      padding: 0.7rem 0.5rem;
-      font-size: 0.85rem;
-      border-bottom: 1px solid var(--border);
-      vertical-align: middle;
-    }
-    .ranking-table tbody tr:hover { background: var(--gray-50); }
+    .empty-state { margin-top: 1.5rem; padding: 2rem; text-align: center; color: var(--gray-400); background: var(--gray-50); border-radius: var(--radius); border: 1px dashed var(--border); }
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 1.25rem; animation: fadeIn 0.4s ease; }
+    .report-table th { text-align: left; font-size: 0.7rem; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 0.5rem; border-bottom: 2px solid var(--border); }
+    .report-table td { padding: 0.7rem 0.5rem; font-size: 0.85rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .report-table tbody tr:hover { background: var(--gray-50); }
     .col-pos { width: 50px; text-align: center; font-weight: 700; color: var(--gray-500); }
     .col-name { font-weight: 600; color: var(--gray-900); }
     .col-email { color: var(--gray-500); font-size: 0.8rem; }
     .col-num { text-align: center; font-weight: 600; color: var(--gray-700); width: 120px; }
+    .col-match { font-weight: 600; color: var(--gray-900); }
+    .col-date { white-space: nowrap; color: var(--gray-500); font-size: 0.8rem; }
+    .col-count { color: var(--primary-dark); }
     .medal { font-size: 1.2rem; }
+    .badge-fase {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      background: #dbeafe;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
   `]
 })
 export class ReportesComponent {
@@ -236,11 +234,17 @@ export class ReportesComponent {
   readonly ranking = signal<RankingGeneralEntry[] | null>(null);
   rankingIdPolla = '';
 
+  readonly partidosLoading = signal(false);
+  readonly partidosError = signal<string | null>(null);
+  readonly partidos = signal<PartidoMasApostado[] | null>(null);
+  faseFiltro = '';
+  partidosFechaInicio = '';
+  partidosFechaFin = '';
+
   generarAdopcion(): void {
     this.adopcionLoading.set(true);
     this.adopcionError.set(null);
     this.adopcionReporte.set(null);
-
     this.reportesService.obtenerAdopcion(
       this.adopcionFechaInicio ? `${this.adopcionFechaInicio}T00:00:00Z` : undefined,
       this.adopcionFechaFin ? `${this.adopcionFechaFin}T23:59:59Z` : undefined
@@ -264,7 +268,6 @@ export class ReportesComponent {
     this.rankingLoading.set(true);
     this.rankingError.set(null);
     this.ranking.set(null);
-
     const idPolla = this.rankingIdPolla ? Number(this.rankingIdPolla) : undefined;
     this.reportesService.obtenerRankingGeneral(idPolla).subscribe({
       next: res => { this.ranking.set(res.data); this.rankingLoading.set(false); },
@@ -277,6 +280,31 @@ export class ReportesComponent {
     this.reportesService.exportarRankingGeneralCsv(idPolla).subscribe({
       next: csv => this.descargarCsv(csv, 'reporte-ranking-general.csv'),
       error: () => this.rankingError.set('Error al exportar el reporte.')
+    });
+  }
+
+  generarPartidos(): void {
+    this.partidosLoading.set(true);
+    this.partidosError.set(null);
+    this.partidos.set(null);
+    this.reportesService.obtenerPartidosMasApostados(
+      this.faseFiltro || undefined,
+      this.partidosFechaInicio ? `${this.partidosFechaInicio}T00:00:00Z` : undefined,
+      this.partidosFechaFin ? `${this.partidosFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: res => { this.partidos.set(res.data); this.partidosLoading.set(false); },
+      error: () => { this.partidosError.set('Error al generar el reporte.'); this.partidosLoading.set(false); }
+    });
+  }
+
+  exportarPartidosCsv(): void {
+    this.reportesService.exportarPartidosMasApostadosCsv(
+      this.faseFiltro || undefined,
+      this.partidosFechaInicio ? `${this.partidosFechaInicio}T00:00:00Z` : undefined,
+      this.partidosFechaFin ? `${this.partidosFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: csv => this.descargarCsv(csv, 'reporte-partidos-mas-apostados.csv'),
+      error: () => this.partidosError.set('Error al exportar el reporte.')
     });
   }
 
