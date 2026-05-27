@@ -14,3 +14,11 @@ export interface PollaAdmin {
   correo: string;
   avatarUrl: string | null;
 }
+
+export interface RankingEntry {
+  posicion: number;
+  nombre: string;
+  correo: string;
+  puntaje: number;
+  premioDigital: string | null;
+}
