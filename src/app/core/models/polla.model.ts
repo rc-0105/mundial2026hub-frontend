@@ -15,6 +15,14 @@ export interface PollaAdmin {
   avatarUrl: string | null;
 }
 
+export interface RankingEntry {
+  posicion: number;
+  nombre: string;
+  correo: string;
+  puntaje: number;
+  premioDigital: string | null;
+}
+
 export interface EventoAuditoria {
   idEvento: number;
   idUsuario: number;
