@@ -1,6 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/auth/services/auth.service';
+import { NotificacionesService } from '../../core/services/notificaciones.service';
 
 @Component({
   selector: 'app-navbar',
@@ -18,7 +19,12 @@ import { AuthService } from '../../core/auth/services/auth.service';
           <a routerLink="/preferencias" routerLinkActive="active">Preferencias</a>
           <a routerLink="/perfil" routerLinkActive="active">Perfil</a>
           <a routerLink="/pollas" routerLinkActive="active">Pollas</a>
-          <a routerLink="/notificaciones" routerLinkActive="active">Notificaciones</a>
+          <a routerLink="/notificaciones" routerLinkActive="active" style="position: relative;">
+            Notificaciones
+            @if (noLeidasCount() > 0) {
+              <span class="notif-badge">{{ noLeidasCount() }}</span>
+            }
+          </a>
           <a routerLink="/reportes" routerLinkActive="active">Reportes</a>
         </div>
         <div class="nav-user">
@@ -114,10 +120,35 @@ import { AuthService } from '../../core/auth/services/auth.service';
       border-color: #fecaca;
       color: #dc2626;
     }
+    .notif-badge {
+      position: absolute;
+      top: -2px;
+      right: -6px;
+      background: #dc2626;
+      color: white;
+      font-size: 0.6rem;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      line-height: 1;
+    }
   `]
 })
 export class NavbarComponent {
   protected readonly auth = inject(AuthService);
+  private readonly notificacionesService = inject(NotificacionesService);
+  readonly noLeidasCount = signal(0);
+
+  constructor() {
+    this.notificacionesService.obtenerNoLeidas().subscribe({
+      next: res => this.noLeidasCount.set(res.data.length),
+    });
+  }
 
   logout(): void {
     this.auth.logout();

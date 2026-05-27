@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ReportesService, RankingGeneralEntry } from '../../core/services/reportes.service';
+import { ReportesService, ReporteAdopcion, RankingGeneralEntry } from '../../core/services/reportes.service';
 
 @Component({
   selector: 'app-reportes',
@@ -10,39 +10,76 @@ import { ReportesService, RankingGeneralEntry } from '../../core/services/report
       <h1>Reportes</h1>
       <p class="subtitle">Estadísticas y exportación de datos de la plataforma</p>
 
+      <!-- Adopción de pollas -->
       <div class="report-card">
-        <h2>Ranking general de pollas</h2>
-        <p class="section-desc">
-          Ranking consolidado de todos los usuarios con su puntaje total acumulado en todas las pollas en las que han participado.
-        </p>
+        <h2>Adopción de pollas</h2>
+        <p class="section-desc">Comparación de usuarios que participan en pollas vs total de usuarios registrados.</p>
 
         <div class="filter-row">
           <div class="filter-group">
-            <label for="idPolla">Filtrar por polla (ID)</label>
-            <input
-              id="idPolla"
-              type="number"
-              placeholder="Dejar vacío para todas"
-              [(ngModel)]="idPollaFiltro"
-              min="1"
-            />
+            <label for="adopcionInicio">Fecha inicio</label>
+            <input id="adopcionInicio" type="date" [(ngModel)]="adopcionFechaInicio" />
+          </div>
+          <div class="filter-group">
+            <label for="adopcionFin">Fecha fin</label>
+            <input id="adopcionFin" type="date" [(ngModel)]="adopcionFechaFin" />
           </div>
           <div class="filter-actions">
-            <button class="btn-primary" (click)="generar()" [disabled]="loading()">
-              @if (loading()) {
-                Generando...
-              } @else {
-                Generar reporte
-              }
+            <button class="btn-primary" (click)="generarAdopcion()" [disabled]="adopcionLoading()">
+              @if (adopcionLoading()) { Generando... } @else { Generar reporte }
             </button>
-            <button class="btn-outline" (click)="exportarCsv()" [disabled]="!ranking()">
+            <button class="btn-outline" (click)="exportarAdopcionCsv()" [disabled]="!adopcionReporte()">
               Exportar CSV
             </button>
           </div>
         </div>
 
-        @if (error()) {
-          <div class="error">{{ error() }}</div>
+        @if (adopcionError()) {
+          <div class="error">{{ adopcionError() }}</div>
+        }
+
+        @if (adopcionReporte(); as r) {
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value">{{ r.totalUsuariosRegistrados }}</div>
+              <div class="stat-label">Usuarios registrados</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">{{ r.totalUsuariosApostadores }}</div>
+              <div class="stat-label">Usuarios que apostaron</div>
+            </div>
+            <div class="stat-card stat-highlight">
+              <div class="stat-value">{{ r.porcentajeParticipacion }}%</div>
+              <div class="stat-label">Participación</div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Ranking general -->
+      <div class="report-card">
+        <h2>Ranking general de pollas</h2>
+        <p class="section-desc">
+          Ranking consolidado de todos los usuarios con su puntaje total acumulado en todas las pollas.
+        </p>
+
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="idPolla">Filtrar por polla (ID)</label>
+            <input id="idPolla" type="number" placeholder="Dejar vacío para todas" [(ngModel)]="rankingIdPolla" min="1" />
+          </div>
+          <div class="filter-actions">
+            <button class="btn-primary" (click)="generarRanking()" [disabled]="rankingLoading()">
+              @if (rankingLoading()) { Generando... } @else { Generar reporte }
+            </button>
+            <button class="btn-outline" (click)="exportarRankingCsv()" [disabled]="!ranking()">
+              Exportar CSV
+            </button>
+          </div>
+        </div>
+
+        @if (rankingError()) {
+          <div class="error">{{ rankingError() }}</div>
         }
 
         @if (ranking(); as entries) {
@@ -63,15 +100,10 @@ import { ReportesService, RankingGeneralEntry } from '../../core/services/report
                 @for (e of entries; track e.idUsuario; let i = $index) {
                   <tr>
                     <td class="col-pos">
-                      @if (i === 0) {
-                        <span class="medal">🥇</span>
-                      } @else if (i === 1) {
-                        <span class="medal">🥈</span>
-                      } @else if (i === 2) {
-                        <span class="medal">🥉</span>
-                      } @else {
-                        {{ i + 1 }}
-                      }
+                      @if (i === 0) { <span class="medal">🥇</span> }
+                      @else if (i === 1) { <span class="medal">🥈</span> }
+                      @else if (i === 2) { <span class="medal">🥉</span> }
+                      @else { {{ i + 1 }} }
                     </td>
                     <td class="col-name">{{ e.nombre }}</td>
                     <td class="col-email">{{ e.correo }}</td>
@@ -133,6 +165,24 @@ import { ReportesService, RankingGeneralEntry } from '../../core/services/report
     }
     .btn-outline:hover { background: var(--primary-light); }
     .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+      animation: fadeIn 0.4s ease;
+    }
+    .stat-card {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      background: var(--gray-50);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .stat-highlight { background: var(--primary-light); border-color: var(--primary); }
+    .stat-value { font-size: 2rem; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+    .stat-highlight .stat-value { color: var(--primary-dark); }
+    .stat-label { font-size: 0.75rem; color: var(--gray-500); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.3rem; }
     .empty-state {
       margin-top: 1.5rem;
       padding: 2rem;
@@ -175,47 +225,68 @@ import { ReportesService, RankingGeneralEntry } from '../../core/services/report
 export class ReportesComponent {
   private readonly reportesService = inject(ReportesService);
 
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly adopcionLoading = signal(false);
+  readonly adopcionError = signal<string | null>(null);
+  readonly adopcionReporte = signal<ReporteAdopcion | null>(null);
+  adopcionFechaInicio = '';
+  adopcionFechaFin = '';
+
+  readonly rankingLoading = signal(false);
+  readonly rankingError = signal<string | null>(null);
   readonly ranking = signal<RankingGeneralEntry[] | null>(null);
+  rankingIdPolla = '';
 
-  idPollaFiltro = '';
+  generarAdopcion(): void {
+    this.adopcionLoading.set(true);
+    this.adopcionError.set(null);
+    this.adopcionReporte.set(null);
 
-  generar(): void {
-    this.loading.set(true);
-    this.error.set(null);
-    this.ranking.set(null);
-
-    const idPolla = this.idPollaFiltro ? Number(this.idPollaFiltro) : undefined;
-
-    this.reportesService.obtenerRankingGeneral(idPolla).subscribe({
-      next: res => {
-        this.ranking.set(res.data);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set('Error al generar el reporte. Intenta nuevamente.');
-        this.loading.set(false);
-      }
+    this.reportesService.obtenerAdopcion(
+      this.adopcionFechaInicio ? `${this.adopcionFechaInicio}T00:00:00Z` : undefined,
+      this.adopcionFechaFin ? `${this.adopcionFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: res => { this.adopcionReporte.set(res.data); this.adopcionLoading.set(false); },
+      error: () => { this.adopcionError.set('Error al generar el reporte.'); this.adopcionLoading.set(false); }
     });
   }
 
-  exportarCsv(): void {
-    const idPolla = this.idPollaFiltro ? Number(this.idPollaFiltro) : undefined;
-
-    this.reportesService.exportarRankingGeneralCsv(idPolla).subscribe({
-      next: csv => {
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'reporte-ranking-general.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      },
-      error: () => {
-        this.error.set('Error al exportar el reporte.');
-      }
+  exportarAdopcionCsv(): void {
+    this.reportesService.exportarAdopcionCsv(
+      this.adopcionFechaInicio ? `${this.adopcionFechaInicio}T00:00:00Z` : undefined,
+      this.adopcionFechaFin ? `${this.adopcionFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: csv => this.descargarCsv(csv, 'reporte-adopcion.csv'),
+      error: () => this.adopcionError.set('Error al exportar el reporte.')
     });
+  }
+
+  generarRanking(): void {
+    this.rankingLoading.set(true);
+    this.rankingError.set(null);
+    this.ranking.set(null);
+
+    const idPolla = this.rankingIdPolla ? Number(this.rankingIdPolla) : undefined;
+    this.reportesService.obtenerRankingGeneral(idPolla).subscribe({
+      next: res => { this.ranking.set(res.data); this.rankingLoading.set(false); },
+      error: () => { this.rankingError.set('Error al generar el reporte.'); this.rankingLoading.set(false); }
+    });
+  }
+
+  exportarRankingCsv(): void {
+    const idPolla = this.rankingIdPolla ? Number(this.rankingIdPolla) : undefined;
+    this.reportesService.exportarRankingGeneralCsv(idPolla).subscribe({
+      next: csv => this.descargarCsv(csv, 'reporte-ranking-general.csv'),
+      error: () => this.rankingError.set('Error al exportar el reporte.')
+    });
+  }
+
+  private descargarCsv(csv: string, filename: string): void {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
   }
 }

@@ -1,11 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { DatePipe, SlicePipe } from '@angular/common';
 import { PollasService } from '../../core/services/pollas.service';
-import { Polla } from '../../core/models/polla.model';
+import { Polla, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../../core/models/polla.model';
 
 @Component({
   selector: 'app-pollas',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DatePipe, SlicePipe],
   template: `
     <div class="page-container">
       <h1>Pollas</h1>
@@ -72,6 +73,121 @@ import { Polla } from '../../core/models/polla.model';
           <p class="success-hint">
             Eres el administrador de esta polla. Podrás finalizarla cuando termine el torneo.
           </p>
+
+          @if (polla.estado === 'ACTIVA') {
+            <div class="finalizar-section">
+              <button class="btn-danger" (click)="finalizar()" [disabled]="finalizarLoading()">
+                @if (finalizarLoading()) {
+                  Finalizando...
+                } @else {
+                  Finalizar polla
+                }
+              </button>
+              <p class="finalizar-hint">Al finalizar la polla se calcularán los ganadores y se otorgarán los premios digitales.</p>
+            </div>
+          }
+
+          @if (finalizarError()) {
+            <div class="error">{{ finalizarError() }}</div>
+          }
+        </div>
+
+        @if (ganadores(); as ganadores) {
+          <div class="prize-section">
+            <h2>Premio digital</h2>
+            <p class="section-desc">La polla ha finalizado. Los ganadores han recibido su certificado digital de campeón.</p>
+
+            <div class="winners-list">
+              @for (g of ganadores; track g.idMiembro) {
+                <div class="winner-card">
+                  <div class="trophy">🏆</div>
+                  <div class="winner-info">
+                    <strong class="winner-name">{{ g.usuario.nombre }}</strong>
+                    <span class="winner-score">{{ g.puntaje }} puntos</span>
+                  </div>
+                  <div class="prize-badge">
+                    <span class="prize-label">{{ g.premioDigital }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (ranking(); as list) {
+          <div class="ranking-section">
+            <h2>Ranking</h2>
+            @if (list.length === 0) {
+              <p class="ranking-empty">Aún no hay miembros en el ranking.</p>
+            } @else {
+              <div class="ranking-table">
+                <div class="ranking-header">
+                  <span class="col-pos">#</span>
+                  <span class="col-name">Participante</span>
+                  <span class="col-score">Puntos</span>
+                  <span class="col-prize">Premio</span>
+                </div>
+                @for (r of list; track r.posicion) {
+                  <div class="ranking-row" [class.gold]="r.posicion === 1" [class.silver]="r.posicion === 2" [class.bronze]="r.posicion === 3">
+                    <span class="col-pos">{{ r.posicion }}</span>
+                    <span class="col-name">{{ r.nombre }}</span>
+                    <span class="col-score">{{ r.puntaje }}</span>
+                    <span class="col-prize">{{ r.premioDigital ?? '—' }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <div class="audit-section">
+          <h2>Auditoría de pronósticos</h2>
+          <p class="section-desc">Todos los pronósticos registrados quedan almacenados de forma inmutable con sello de tiempo.</p>
+
+          <div class="audit-actions">
+            <button class="btn-outline" (click)="cargarAuditoria()" [disabled]="auditLoading()">
+              @if (auditLoading()) {
+                Cargando...
+              } @else {
+                Ver historial de auditoría
+              }
+            </button>
+          </div>
+
+          @if (auditEventos(); as eventos) {
+            <div class="audit-list">
+              @if (eventos.length === 0) {
+                <div class="audit-empty">
+                  No hay eventos de auditoría registrados para esta polla. Los pronósticos aparecerán aquí una vez que los miembros comiencen a registrar sus predicciones.
+                </div>
+              } @else {
+                <table class="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha/Hora</th>
+                      <th>Evento</th>
+                      <th>Detalle</th>
+                      <th>ID Correlación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (evento of eventos; track evento.idEvento) {
+                      <tr>
+                        <td class="audit-timestamp">{{ evento.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                        <td><span class="badge badge-audit">{{ evento.tipoEvento }}</span></td>
+                        <td class="audit-detail">{{ evento.detalle }}</td>
+                        <td class="audit-correlation">{{ evento.idCorrelacion | slice:0:8 }}...</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          }
+
+          @if (auditError()) {
+            <div class="error">{{ auditError() }}</div>
+          }
         </div>
       }
     </div>
@@ -134,6 +250,164 @@ import { Polla } from '../../core/models/polla.model';
       background: var(--gray-50);
     }
     .success-hint { font-size: 0.8rem; color: var(--gray-400); margin-top: 1rem; }
+    .finalizar-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+    .finalizar-hint { font-size: 0.75rem; color: var(--gray-400); margin-top: 0.5rem; }
+    .btn-danger {
+      padding: 0.6rem 1.5rem;
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+    .prize-section {
+      max-width: 600px;
+      margin-top: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      animation: fadeIn 0.4s ease;
+    }
+    .prize-section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; }
+    .winners-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
+    .winner-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--gray-50);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .trophy { font-size: 1.5rem; }
+    .winner-info { flex: 1; display: flex; flex-direction: column; }
+    .winner-name { font-size: 0.95rem; color: var(--gray-900); }
+    .winner-score { font-size: 0.8rem; color: var(--gray-500); }
+    .prize-badge {
+      padding: 0.25rem 0.75rem;
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: var(--radius-sm);
+    }
+    .prize-label { font-size: 0.7rem; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.03em; }
+    .ranking-section {
+      max-width: 560px;
+      margin-top: 2rem;
+    }
+    .ranking-section h2 { font-size: 1.1rem; font-weight: 700; color: var(--gray-900); margin-bottom: 1rem; }
+    .ranking-empty { font-size: 0.85rem; color: var(--gray-400); }
+    .ranking-table {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .ranking-header {
+      display: grid;
+      grid-template-columns: 3rem 1fr 5rem 5rem;
+      gap: 0.5rem;
+      padding: 0.7rem 1rem;
+      background: var(--gray-50);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .ranking-row {
+      display: grid;
+      grid-template-columns: 3rem 1fr 5rem 5rem;
+      gap: 0.5rem;
+      padding: 0.7rem 1rem;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      transition: background 0.15s;
+    }
+    .ranking-row:hover { background: var(--gray-50); }
+    .ranking-row.gold { background: #fffbeb; }
+    .ranking-row.silver { background: #f8fafc; }
+    .ranking-row.bronze { background: #fef2f2; }
+    .col-pos { font-weight: 700; color: var(--gray-700); text-align: center; }
+    .col-name { font-weight: 500; color: var(--gray-900); }
+    .col-score { font-weight: 700; color: var(--primary-dark); text-align: center; }
+    .col-prize { font-size: 0.8rem; color: var(--gray-500); text-align: center; }
+    .audit-section {
+      max-width: 800px;
+      margin-top: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      animation: fadeIn 0.4s ease;
+    }
+    .audit-section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; }
+    .audit-actions { margin: 1rem 0; }
+    .btn-outline {
+      padding: 0.5rem 1.25rem;
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+    .audit-empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--gray-400);
+      font-size: 0.9rem;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+    }
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+    }
+    .audit-table th {
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .audit-table td {
+      padding: 0.6rem 0.5rem;
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .audit-table tbody tr:hover { background: var(--gray-50); }
+    .audit-timestamp { white-space: nowrap; color: var(--gray-500); font-size: 0.8rem; }
+    .audit-detail { color: var(--gray-700); }
+    .audit-correlation { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--gray-400); }
+    .badge-audit {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      background: #fef3c7;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
   `]
 })
 export class PollasComponent {
@@ -149,6 +423,13 @@ export class PollasComponent {
   readonly pollaCreada = signal<Polla | null>(null);
   readonly copiado = signal(false);
   readonly enlaceCopiado = signal(false);
+  readonly ranking = signal<RankingEntry[] | null>(null);
+  readonly finalizarLoading = signal(false);
+  readonly finalizarError = signal<string | null>(null);
+  readonly ganadores = signal<PollaMiembroWinner[] | null>(null);
+  readonly auditLoading = signal(false);
+  readonly auditError = signal<string | null>(null);
+  readonly auditEventos = signal<EventoAuditoria[] | null>(null);
 
   crear(): void {
     if (this.form.invalid) return;
@@ -160,8 +441,13 @@ export class PollasComponent {
     this.pollasService.crearPolla(this.form.getRawValue().nombre).subscribe({
       next: res => {
         this.pollaCreada.set(res.data);
+        this.ranking.set(null);
         this.form.reset();
         this.loading.set(false);
+
+        this.pollasService.obtenerRanking(res.data.idPolla).subscribe({
+          next: rankRes => this.ranking.set(rankRes.data),
+        });
       },
       error: () => {
         this.error.set('Error al crear la polla. Intenta nuevamente.');
@@ -185,6 +471,47 @@ export class PollasComponent {
     navigator.clipboard.writeText(polla.enlaceInvitacion).then(() => {
       this.enlaceCopiado.set(true);
       setTimeout(() => this.enlaceCopiado.set(false), 2000);
+    });
+  }
+
+  finalizar(): void {
+    const polla = this.pollaCreada();
+    if (!polla) return;
+
+    this.finalizarLoading.set(true);
+    this.finalizarError.set(null);
+    this.ganadores.set(null);
+
+    this.pollasService.finalizarPolla(polla.idPolla).subscribe({
+      next: res => {
+        this.ganadores.set(res.data);
+        this.pollaCreada.set({ ...polla, estado: 'FINALIZADA' });
+        this.finalizarLoading.set(false);
+      },
+      error: () => {
+        this.finalizarError.set('Error al finalizar la polla. Solo el administrador puede realizar esta acción.');
+        this.finalizarLoading.set(false);
+      }
+    });
+  }
+
+  cargarAuditoria(): void {
+    const polla = this.pollaCreada();
+    if (!polla) return;
+
+    this.auditLoading.set(true);
+    this.auditError.set(null);
+    this.auditEventos.set(null);
+
+    this.pollasService.obtenerAuditoriaDePolla(polla.idPolla).subscribe({
+      next: res => {
+        this.auditEventos.set(res.data);
+        this.auditLoading.set(false);
+      },
+      error: () => {
+        this.auditError.set('Error al cargar la auditoría. Intenta nuevamente.');
+        this.auditLoading.set(false);
+      }
     });
   }
 }
