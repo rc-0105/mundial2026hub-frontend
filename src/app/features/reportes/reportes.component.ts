@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasApostado } from '../../core/services/reportes.service';
+import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasApostado, AciertosUsuario } from '../../core/services/reportes.service';
 
 @Component({
   selector: 'app-reportes',
@@ -47,8 +47,8 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
         <p class="section-desc">Ranking consolidado con puntaje total acumulado en todas las pollas.</p>
         <div class="filter-row">
           <div class="filter-group">
-            <label for="idPolla">Filtrar por polla (ID)</label>
-            <input id="idPolla" type="number" placeholder="Dejar vacío para todas" [(ngModel)]="rankingIdPolla" min="1" />
+            <label for="idPollaRanking">Filtrar por polla (ID)</label>
+            <input id="idPollaRanking" type="number" placeholder="Dejar vacío para todas" [(ngModel)]="rankingIdPolla" min="1" />
           </div>
           <div class="filter-actions">
             <button class="btn-primary" (click)="generarRanking()" [disabled]="rankingLoading()">
@@ -139,6 +139,62 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
           }
         }
       </div>
+
+      <!-- Predicciones acertadas por usuario -->
+      <div class="report-card">
+        <h2>Predicciones acertadas por usuario</h2>
+        <p class="section-desc">Porcentaje de aciertos de cada usuario, ordenado de mayor a menor precisión.</p>
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="idPollaAciertos">Filtrar por polla (ID)</label>
+            <input id="idPollaAciertos" type="number" placeholder="Todas las pollas" [(ngModel)]="aciertosIdPolla" min="1" />
+          </div>
+          <div class="filter-group">
+            <label for="aciertosInicio">Fecha inicio</label>
+            <input id="aciertosInicio" type="date" [(ngModel)]="aciertosFechaInicio" />
+          </div>
+          <div class="filter-group">
+            <label for="aciertosFin">Fecha fin</label>
+            <input id="aciertosFin" type="date" [(ngModel)]="aciertosFechaFin" />
+          </div>
+          <div class="filter-actions">
+            <button class="btn-primary" (click)="generarAciertos()" [disabled]="aciertosLoading()">
+              @if (aciertosLoading()) { Generando... } @else { Generar reporte }
+            </button>
+            <button class="btn-outline" (click)="exportarAciertosCsv()" [disabled]="!aciertos()">Exportar CSV</button>
+          </div>
+        </div>
+        @if (aciertosError()) { <div class="error">{{ aciertosError() }}</div> }
+        @if (aciertos(); as entries) {
+          @if (entries.length === 0) {
+            <div class="empty-state">No hay datos de aciertos disponibles.</div>
+          } @else {
+            <div class="aciertos-summary">
+              <div class="summary-item"><span class="summary-value">{{ entries.length }}</span><span class="summary-label">Usuarios</span></div>
+              <div class="summary-item"><span class="summary-value">{{ totalPronosticos() }}</span><span class="summary-label">Pronósticos totales</span></div>
+              <div class="summary-item"><span class="summary-value">{{ totalAciertosResultado() }}</span><span class="summary-label">Aciertos resultado</span></div>
+              <div class="summary-item"><span class="summary-value">{{ totalAciertosExacto() }}</span><span class="summary-label">Marcadores exactos</span></div>
+            </div>
+            <table class="report-table">
+              <thead><tr><th class="col-pos">#</th><th>Nombre</th><th class="col-num">Pronósticos</th><th class="col-num">Aciertos</th><th class="col-num">Exactos</th><th class="col-pct">% Acierto</th></tr></thead>
+              <tbody>
+                @for (e of entries; track e.idUsuario; let i = $index) {
+                  <tr>
+                    <td class="col-pos">{{ i + 1 }}</td>
+                    <td class="col-name">{{ e.nombre }}</td>
+                    <td class="col-num">{{ e.totalPronosticosRegistrados }}</td>
+                    <td class="col-num">{{ e.pronosticosAcertadosResultado }}</td>
+                    <td class="col-num">{{ e.pronosticosAcertadosMarcadorExacto }}</td>
+                    <td class="col-pct">
+                      <span class="pct-badge" [style.background]="pctColor(e.porcentajeAcierto)">{{ e.porcentajeAcierto }}%</span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </div>
     </div>
   `,
   styles: [`
@@ -206,6 +262,7 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
     .col-match { font-weight: 600; color: var(--gray-900); }
     .col-date { white-space: nowrap; color: var(--gray-500); font-size: 0.8rem; }
     .col-count { color: var(--primary-dark); }
+    .col-pct { text-align: center; width: 100px; }
     .medal { font-size: 1.2rem; }
     .badge-fase {
       display: inline-block;
@@ -217,6 +274,26 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
       color: #1e40af;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+    }
+    .aciertos-summary {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+    }
+    .summary-item { display: flex; flex-direction: column; align-items: center; }
+    .summary-value { font-size: 1.5rem; font-weight: 800; color: var(--gray-900); }
+    .summary-label { font-size: 0.7rem; color: var(--gray-400); font-weight: 600; text-transform: uppercase; }
+    .pct-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      color: white;
     }
   `]
 })
@@ -240,6 +317,23 @@ export class ReportesComponent {
   faseFiltro = '';
   partidosFechaInicio = '';
   partidosFechaFin = '';
+
+  readonly aciertosLoading = signal(false);
+  readonly aciertosError = signal<string | null>(null);
+  readonly aciertos = signal<AciertosUsuario[] | null>(null);
+  aciertosIdPolla = '';
+  aciertosFechaInicio = '';
+  aciertosFechaFin = '';
+
+  readonly totalPronosticos = computed(() => this.aciertos()?.reduce((s, e) => s + e.totalPronosticosRegistrados, 0) ?? 0);
+  readonly totalAciertosResultado = computed(() => this.aciertos()?.reduce((s, e) => s + e.pronosticosAcertadosResultado, 0) ?? 0);
+  readonly totalAciertosExacto = computed(() => this.aciertos()?.reduce((s, e) => s + e.pronosticosAcertadosMarcadorExacto, 0) ?? 0);
+
+  pctColor(pct: number): string {
+    if (pct >= 70) return '#16a34a';
+    if (pct >= 40) return '#ca8a04';
+    return '#dc2626';
+  }
 
   generarAdopcion(): void {
     this.adopcionLoading.set(true);
@@ -305,6 +399,33 @@ export class ReportesComponent {
     ).subscribe({
       next: csv => this.descargarCsv(csv, 'reporte-partidos-mas-apostados.csv'),
       error: () => this.partidosError.set('Error al exportar el reporte.')
+    });
+  }
+
+  generarAciertos(): void {
+    this.aciertosLoading.set(true);
+    this.aciertosError.set(null);
+    this.aciertos.set(null);
+    const idPolla = this.aciertosIdPolla ? Number(this.aciertosIdPolla) : undefined;
+    this.reportesService.obtenerAciertosUsuario(
+      idPolla,
+      this.aciertosFechaInicio ? `${this.aciertosFechaInicio}T00:00:00Z` : undefined,
+      this.aciertosFechaFin ? `${this.aciertosFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: res => { this.aciertos.set(res.data); this.aciertosLoading.set(false); },
+      error: () => { this.aciertosError.set('Error al generar el reporte.'); this.aciertosLoading.set(false); }
+    });
+  }
+
+  exportarAciertosCsv(): void {
+    const idPolla = this.aciertosIdPolla ? Number(this.aciertosIdPolla) : undefined;
+    this.reportesService.exportarAciertosCsv(
+      idPolla,
+      this.aciertosFechaInicio ? `${this.aciertosFechaInicio}T00:00:00Z` : undefined,
+      this.aciertosFechaFin ? `${this.aciertosFechaFin}T23:59:59Z` : undefined
+    ).subscribe({
+      next: csv => this.descargarCsv(csv, 'reporte-aciertos.csv'),
+      error: () => this.aciertosError.set('Error al exportar el reporte.')
     });
   }
 
