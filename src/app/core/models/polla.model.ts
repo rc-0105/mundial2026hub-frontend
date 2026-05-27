@@ -22,3 +22,14 @@ export interface RankingEntry {
   puntaje: number;
   premioDigital: string | null;
 }
+
+export interface EventoAuditoria {
+  idEvento: number;
+  idUsuario: number;
+  tipoEvento: string;
+  entidadRef: string;
+  idEntidad: number;
+  detalle: string;
+  timestamp: string;
+  idCorrelacion: string;
+}
