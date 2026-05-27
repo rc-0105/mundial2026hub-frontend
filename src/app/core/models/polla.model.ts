@@ -14,3 +14,30 @@ export interface PollaAdmin {
   correo: string;
   avatarUrl: string | null;
 }
+
+export interface RankingEntry {
+  posicion: number;
+  nombre: string;
+  correo: string;
+  puntaje: number;
+  premioDigital: string | null;
+}
+
+export interface EventoAuditoria {
+  idEvento: number;
+  idUsuario: number;
+  tipoEvento: string;
+  entidadRef: string;
+  idEntidad: number;
+  detalle: string;
+  timestamp: string;
+  idCorrelacion: string;
+}
+
+export interface PollaMiembroWinner {
+  idMiembro: number;
+  usuario: { idUsuario: number; nombre: string; correo: string };
+  puntaje: number;
+  premioDigital: string | null;
+  fechaUnion: string;
+}
