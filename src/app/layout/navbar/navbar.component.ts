@@ -19,12 +19,6 @@ import { NotificacionesService } from '../../core/services/notificaciones.servic
           <a routerLink="/preferencias" routerLinkActive="active">Preferencias</a>
           <a routerLink="/perfil" routerLinkActive="active">Perfil</a>
           <a routerLink="/pollas" routerLinkActive="active">Pollas</a>
-          <a routerLink="/notificaciones" routerLinkActive="active" style="position: relative;">
-            Notificaciones
-            @if (noLeidasCount() > 0) {
-              <span class="notif-badge">{{ noLeidasCount() }}</span>
-            }
-          </a>
           <a routerLink="/reportes" routerLinkActive="active">Reportes</a>
         </div>
         <div class="nav-user">
