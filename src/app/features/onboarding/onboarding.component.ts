@@ -1,76 +1,65 @@
 import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { PreferenciasService } from '../../core/services/preferencias.service';
+import { CatalogoService } from '../../core/services/catalogo.service';
 
 @Component({
   selector: 'app-onboarding',
-  imports: [FormsModule],
+  imports: [],
   templateUrl: './onboarding.component.html',
 })
 export class OnboardingComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly preferenciasService = inject(PreferenciasService);
   private readonly router = inject(Router);
+  readonly catalogo = inject(CatalogoService);
 
   readonly currentStep = signal(1);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
-  readonly seleccionesFavoritas = signal<number[]>([]);
-  readonly ciudadesFavoritas = signal<number[]>([]);
-  readonly estadiosFavoritos = signal<number[]>([]);
+  readonly seleccionesElegidas = signal<number[]>([]);
+  readonly ciudadesElegidas = signal<number[]>([]);
+  readonly estadiosElegidos = signal<number[]>([]);
   readonly canalesActivos = signal<string[]>(['EMAIL']);
 
-  inputSeleccion = '';
-  inputCiudad = '';
-  inputEstadio = '';
+  readonly canalesDisponibles = ['EMAIL', 'PUSH'];
 
   ngOnInit(): void {
-    // Si el usuario no requiere onboarding, redirige
     if (!this.authService.requiresOnboarding()) {
       this.router.navigate(['/agenda']);
     }
   }
 
-  // Paso 1: Selecciones
-  agregarSeleccion(): void {
-    const id = Number(this.inputSeleccion);
-    if (id && !this.seleccionesFavoritas().includes(id)) {
-      this.seleccionesFavoritas.update(v => [...v, id]);
-      this.inputSeleccion = '';
-    }
+  toggleSeleccion(id: number): void {
+    this.seleccionesElegidas.update(v =>
+      v.includes(id) ? v.filter(s => s !== id) : [...v, id]
+    );
   }
 
-  quitarSeleccion(id: number): void {
-    this.seleccionesFavoritas.update(v => v.filter(s => s !== id));
+  toggleCiudad(id: number): void {
+    this.ciudadesElegidas.update(v =>
+      v.includes(id) ? v.filter(c => c !== id) : [...v, id]
+    );
   }
 
-  // Paso 2: Ciudades
-  agregarCiudad(): void {
-    const id = Number(this.inputCiudad);
-    if (id && !this.ciudadesFavoritas().includes(id)) {
-      this.ciudadesFavoritas.update(v => [...v, id]);
-      this.inputCiudad = '';
-    }
+  toggleEstadio(id: number): void {
+    this.estadiosElegidos.update(v =>
+      v.includes(id) ? v.filter(e => e !== id) : [...v, id]
+    );
   }
 
-  quitarCiudad(id: number): void {
-    this.ciudadesFavoritas.update(v => v.filter(c => c !== id));
+  isSeleccionElegida(id: number): boolean {
+    return this.seleccionesElegidas().includes(id);
   }
 
-  // Paso 3: Estadios
-  agregarEstadio(): void {
-    const id = Number(this.inputEstadio);
-    if (id && !this.estadiosFavoritos().includes(id)) {
-      this.estadiosFavoritos.update(v => [...v, id]);
-      this.inputEstadio = '';
-    }
+  isCiudadElegida(id: number): boolean {
+    return this.ciudadesElegidas().includes(id);
   }
 
-  quitarEstadio(id: number): void {
-    this.estadiosFavoritos.update(v => v.filter(e => e !== id));
+  isEstadioElegido(id: number): boolean {
+    return this.estadiosElegidos().includes(id);
   }
 
   toggleCanal(canal: string): void {
@@ -83,7 +72,6 @@ export class OnboardingComponent implements OnInit {
     return this.canalesActivos().includes(canal);
   }
 
-  // Navegación
   siguientePaso(): void {
     this.error.set(null);
     if (this.currentStep() < 5) {
@@ -97,17 +85,16 @@ export class OnboardingComponent implements OnInit {
     }
   }
 
-  // Finalizar onboarding
   finalizarOnboarding(): void {
     this.error.set(null);
     this.loading.set(true);
 
     this.preferenciasService.completarOnboarding({
       paso: 5,
-      seleccionesFavoritas: this.seleccionesFavoritas().join(','),
-      ciudadesFavoritas: this.ciudadesFavoritas().join(','),
-      estadiosFavoritos: this.estadiosFavoritos().join(','),
-      canalesNotificacion: this.canalesActivos().join(','),
+      seleccionesFavoritas: this.seleccionesElegidas().join(','),
+      ciudadesFavoritas: this.ciudadesElegidas().join(','),
+      estadiosFavoritos: this.estadiosElegidos().join(','),
+      canalesNotificacion: this.mapearCanales(),
     }).subscribe({
       next: () => {
         this.loading.set(false);
@@ -121,13 +108,20 @@ export class OnboardingComponent implements OnInit {
     });
   }
 
-  // Omitir onboarding
   omitir(): void {
     this.authService.onboardingCompleted();
     this.router.navigate(['/agenda']);
   }
 
-  readonly canalesDisponibles = ['EMAIL', 'SMS', 'PUSH'];
+  private mapearCanales(): string {
+    const activos = this.canalesActivos();
+    const tieneEmail = activos.includes('EMAIL');
+    const tienePush = activos.includes('PUSH');
+    if (tieneEmail && tienePush) return 'AMBOS';
+    if (tieneEmail) return 'EMAIL';
+    if (tienePush) return 'PUSH';
+    return 'NINGUNO';
+  }
 
   labelCanal(tipo: string): string {
     const labels: Record<string, string> = {
@@ -136,5 +130,17 @@ export class OnboardingComponent implements OnInit {
       PUSH: 'Notificaciones push',
     };
     return labels[tipo] || tipo;
+  }
+
+  nombreSeleccion(id: number): string {
+    return this.catalogo.selecciones.find(s => s.id === id)?.nombre ?? `#${id}`;
+  }
+
+  nombreCiudad(id: number): string {
+    return this.catalogo.ciudades.find(c => c.id === id)?.nombre ?? `#${id}`;
+  }
+
+  nombreEstadio(id: number): string {
+    return this.catalogo.estadios.find(e => e.id === id)?.nombre ?? `#${id}`;
   }
 }

@@ -21,7 +21,4 @@ export class PartidosService {
     return this.http.get<ApiResponse<PartidoDetalle>>(`${environment.apiUrl}/partidos/${id}/en-vivo`);
   }
 
-  getAgenda(): Observable<PartidoApiResponse> {
-    return this.http.get<PartidoApiResponse>(`${environment.apiUrl}/agenda`);
-  }
 }

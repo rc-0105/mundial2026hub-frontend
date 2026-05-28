@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { map, tap } from 'rxjs/operators';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { StorageService } from '../../services/storage.service';
 import { AuthRequest } from '../models/auth-request.model';
@@ -26,9 +26,8 @@ export class AuthService {
 
   login(request: AuthRequest) {
     return this.http
-      .post<ApiResponse<AuthResponse>>(`${environment.apiUrl}/auth/login`, request)
+      .post<AuthResponse>(`${environment.apiUrl}/auth/login`, request)
       .pipe(
-        map(res => res.data),
         tap(response => {
           this.storage.setToken(response.token);
           this.storage.setUser(response);

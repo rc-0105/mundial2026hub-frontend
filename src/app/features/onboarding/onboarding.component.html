@@ -6,7 +6,7 @@
       <p>Completá tu perfil en {{ currentStep() }} de 5 pasos para personalizar tu experiencia</p>
     </div>
 
-    <!-- Stepper progress -->
+    <!-- Stepper -->
     <div class="stepper">
       @for (step of [1, 2, 3, 4, 5]; track step) {
         <div class="step-item" [class.active]="currentStep() === step" [class.completed]="currentStep() > step">
@@ -28,108 +28,85 @@
       <div class="error-banner">{{ error() }}</div>
     }
 
-    <!-- Contenido de pasos -->
     <div class="steps-content">
       @switch(currentStep()) {
+
         @case(1) {
           <div class="step-content">
             <h2>Selecciones favoritas</h2>
-            <p class="step-desc">Agregá las selecciones que querés seguir en tu agenda</p>
-            <div class="input-group">
-              <input 
-                type="number" 
-                [(ngModel)]="inputSeleccion" 
-                placeholder="ID de selección" 
-                [disabled]="loading()"
-              />
-              <button 
-                (click)="agregarSeleccion()" 
-                class="btn-secondary"
-                [disabled]="loading() || !inputSeleccion"
-              >
-                Agregar
-              </button>
+            <p class="step-desc">
+              Elegí las selecciones que querés seguir.
+              @if (seleccionesElegidas().length > 0) {
+                <span class="badge">{{ seleccionesElegidas().length }} elegidas</span>
+              }
+            </p>
+            <div class="catalog-grid">
+              @for (s of catalogo.selecciones; track s.id) {
+                <button
+                  type="button"
+                  class="catalog-card"
+                  [class.selected]="isSeleccionElegida(s.id)"
+                  (click)="toggleSeleccion(s.id)"
+                  [disabled]="loading()"
+                >
+                  {{ s.nombre }}
+                </button>
+              }
             </div>
-            @if (seleccionesFavoritas().length > 0) {
-              <div class="tag-list">
-                @for (s of seleccionesFavoritas(); track s) {
-                  <span class="tag">
-                    Selección #{{ s }}
-                    <button type="button" class="tag-remove" (click)="quitarSeleccion(s)">×</button>
-                  </span>
-                }
-              </div>
-            } @else {
-              <p class="hint">Aún no agregaste ninguna selección</p>
-            }
           </div>
         }
+
         @case(2) {
           <div class="step-content">
             <h2>Ciudades de interés</h2>
-            <p class="step-desc">Ciudades sede que te interesan</p>
-            <div class="input-group">
-              <input 
-                type="number" 
-                [(ngModel)]="inputCiudad" 
-                placeholder="ID de ciudad" 
-                [disabled]="loading()"
-              />
-              <button 
-                (click)="agregarCiudad()" 
-                class="btn-secondary"
-                [disabled]="loading() || !inputCiudad"
-              >
-                Agregar
-              </button>
+            <p class="step-desc">
+              Ciudades sede que te interesan.
+              @if (ciudadesElegidas().length > 0) {
+                <span class="badge">{{ ciudadesElegidas().length }} elegidas</span>
+              }
+            </p>
+            <div class="catalog-grid catalog-grid--sm">
+              @for (c of catalogo.ciudades; track c.id) {
+                <button
+                  type="button"
+                  class="catalog-card"
+                  [class.selected]="isCiudadElegida(c.id)"
+                  (click)="toggleCiudad(c.id)"
+                  [disabled]="loading()"
+                >
+                  {{ c.nombre }}
+                </button>
+              }
             </div>
-            @if (ciudadesFavoritas().length > 0) {
-              <div class="tag-list">
-                @for (c of ciudadesFavoritas(); track c) {
-                  <span class="tag">
-                    Ciudad #{{ c }}
-                    <button type="button" class="tag-remove" (click)="quitarCiudad(c)">×</button>
-                  </span>
-                }
-              </div>
-            } @else {
-              <p class="hint">Aún no agregaste ninguna ciudad</p>
-            }
           </div>
         }
+
         @case(3) {
           <div class="step-content">
             <h2>Estadios de interés</h2>
-            <p class="step-desc">Estadios que querés seguir</p>
-            <div class="input-group">
-              <input 
-                type="number" 
-                [(ngModel)]="inputEstadio" 
-                placeholder="ID de estadio" 
-                [disabled]="loading()"
-              />
-              <button 
-                (click)="agregarEstadio()" 
-                class="btn-secondary"
-                [disabled]="loading() || !inputEstadio"
-              >
-                Agregar
-              </button>
+            <p class="step-desc">
+              Estadios que querés seguir.
+              @if (estadiosElegidos().length > 0) {
+                <span class="badge">{{ estadiosElegidos().length }} elegidos</span>
+              }
+            </p>
+            <div class="catalog-grid catalog-grid--sm">
+              @for (e of catalogo.estadios; track e.id) {
+                <button
+                  type="button"
+                  class="catalog-card catalog-card--estadio"
+                  [class.selected]="isEstadioElegido(e.id)"
+                  (click)="toggleEstadio(e.id)"
+                  [disabled]="loading()"
+                >
+                  <span class="card-title">{{ e.nombre }}</span>
+                  <span class="card-sub">{{ e.ciudad }}</span>
+                </button>
+              }
             </div>
-            @if (estadiosFavoritos().length > 0) {
-              <div class="tag-list">
-                @for (e of estadiosFavoritos(); track e) {
-                  <span class="tag">
-                    Estadio #{{ e }}
-                    <button type="button" class="tag-remove" (click)="quitarEstadio(e)">×</button>
-                  </span>
-                }
-              </div>
-            } @else {
-              <p class="hint">Aún no agregaste ningún estadio</p>
-            }
           </div>
         }
+
         @case(4) {
           <div class="step-content">
             <h2>Canales de notificación</h2>
@@ -141,14 +118,12 @@
                     type="checkbox"
                     [checked]="canalActivo(canal)"
                     (change)="toggleCanal(canal)"
-                    [name]="'ch_' + canal"
                     [disabled]="loading()"
                   />
                   <span class="channel-label">{{ labelCanal(canal) }}</span>
                   <span class="channel-desc">
                     @switch(canal) {
                       @case('EMAIL') { <span>Recibí resúmenes en tu correo</span> }
-                      @case('SMS') { <span>Alertas por mensaje de texto</span> }
                       @case('PUSH') { <span>Notificaciones en tiempo real</span> }
                     }
                   </span>
@@ -157,39 +132,56 @@
             </div>
           </div>
         }
+
         @case(5) {
           <div class="step-content">
             <h2>¡Casi listo!</h2>
-            <p class="step-desc">Revisa tu configuración antes de finalizar</p>
+            <p class="step-desc">Revisá tu configuración antes de finalizar</p>
             <div class="summary">
               <div class="summary-section">
-                <h3>Selecciones favoritas</h3>
-                @if (seleccionesFavoritas().length > 0) {
-                  <p>{{ seleccionesFavoritas().length }} seleccione(s) agregada(s)</p>
+                <h3>Selecciones favoritas ({{ seleccionesElegidas().length }})</h3>
+                @if (seleccionesElegidas().length > 0) {
+                  <div class="summary-tags">
+                    @for (id of seleccionesElegidas(); track id) {
+                      <span class="summary-tag">{{ nombreSeleccion(id) }}</span>
+                    }
+                  </div>
                 } @else {
                   <p class="hint">Sin selecciones</p>
                 }
               </div>
               <div class="summary-section">
-                <h3>Ciudades de interés</h3>
-                @if (ciudadesFavoritas().length > 0) {
-                  <p>{{ ciudadesFavoritas().length }} ciudad(es) agregada(s)</p>
+                <h3>Ciudades de interés ({{ ciudadesElegidas().length }})</h3>
+                @if (ciudadesElegidas().length > 0) {
+                  <div class="summary-tags">
+                    @for (id of ciudadesElegidas(); track id) {
+                      <span class="summary-tag">{{ nombreCiudad(id) }}</span>
+                    }
+                  </div>
                 } @else {
                   <p class="hint">Sin ciudades</p>
                 }
               </div>
               <div class="summary-section">
-                <h3>Estadios de interés</h3>
-                @if (estadiosFavoritos().length > 0) {
-                  <p>{{ estadiosFavoritos().length }} estadio(s) agregado(s)</p>
+                <h3>Estadios de interés ({{ estadiosElegidos().length }})</h3>
+                @if (estadiosElegidos().length > 0) {
+                  <div class="summary-tags">
+                    @for (id of estadiosElegidos(); track id) {
+                      <span class="summary-tag">{{ nombreEstadio(id) }}</span>
+                    }
+                  </div>
                 } @else {
                   <p class="hint">Sin estadios</p>
                 }
               </div>
               <div class="summary-section">
-                <h3>Canales de notificación</h3>
+                <h3>Canales de notificación ({{ canalesActivos().length }})</h3>
                 @if (canalesActivos().length > 0) {
-                  <p>{{ canalesActivos().length }} canal(es) activo(s)</p>
+                  <div class="summary-tags">
+                    @for (c of canalesActivos(); track c) {
+                      <span class="summary-tag">{{ labelCanal(c) }}</span>
+                    }
+                  </div>
                 } @else {
                   <p class="hint">Sin canales activos</p>
                 }
@@ -197,10 +189,11 @@
             </div>
           </div>
         }
+
       }
     </div>
 
-    <!-- Botones de navegación -->
+    <!-- Navegación -->
     <div class="step-actions">
       @if (currentStep() > 1) {
         <button class="btn-secondary" (click)="pasoAnterior()" [disabled]="loading()">
@@ -244,7 +237,7 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
     padding: 2.5rem;
     width: 100%;
-    max-width: 600px;
+    max-width: 680px;
   }
 
   .onboarding-header {
@@ -280,7 +273,7 @@
     right: 0;
     height: 2px;
     background: var(--gray-200);
-    z-index: -1;
+    z-index: 0;
   }
 
   .step-item {
@@ -345,7 +338,7 @@
 
   .steps-content {
     margin-bottom: 2rem;
-    min-height: 300px;
+    min-height: 320px;
   }
 
   .step-content {
@@ -367,66 +360,90 @@
   .step-desc {
     color: var(--gray-500);
     font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .input-group {
+    margin-bottom: 1.25rem;
     display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .input-group input {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    font-size: 0.95rem;
-    font-family: inherit;
-  }
-
-  .input-group input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(51, 76, 255, 0.1);
-  }
-
-  .tag-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .tag {
-    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--primary-light);
-    color: var(--primary);
-    padding: 0.5rem 0.75rem;
+  }
+
+  .badge {
+    background: var(--primary);
+    color: white;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  /* Catalog grid */
+  .catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.5rem;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
+  .catalog-grid--sm {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .catalog-card {
+    padding: 0.6rem 0.75rem;
+    border: 2px solid var(--border);
     border-radius: var(--radius);
+    background: white;
+    color: var(--gray-700);
     font-size: 0.85rem;
     font-weight: 500;
-  }
-
-  .tag-remove {
-    background: none;
-    border: none;
-    color: inherit;
     cursor: pointer;
-    font-size: 1.2rem;
-    padding: 0;
+    transition: all 0.15s;
+    text-align: center;
+    font-family: inherit;
+    line-height: 1.3;
+  }
+
+  .catalog-card:hover:not(:disabled) {
+    border-color: var(--primary);
+    background: var(--primary-light, #eef0ff);
+    color: var(--primary);
+  }
+
+  .catalog-card.selected {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+  }
+
+  .catalog-card.selected:hover:not(:disabled) {
+    background: var(--primary-dark, #2533cc);
+    border-color: var(--primary-dark, #2533cc);
+  }
+
+  .catalog-card--estadio {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.15rem;
+    text-align: left;
   }
 
-  .hint {
-    color: var(--gray-400);
+  .card-title {
+    font-weight: 600;
     font-size: 0.85rem;
-    font-style: italic;
   }
 
+  .card-sub {
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+
+  .catalog-card.selected .card-sub {
+    opacity: 0.85;
+  }
+
+  /* Channels */
   .channels {
     display: flex;
     flex-direction: column;
@@ -469,6 +486,7 @@
     margin-top: 0.2rem;
   }
 
+  /* Summary */
   .summary {
     display: grid;
     gap: 1rem;
@@ -488,11 +506,28 @@
     margin-bottom: 0.5rem;
   }
 
-  .summary-section p {
-    font-size: 0.85rem;
-    color: var(--gray-600);
+  .summary-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
   }
 
+  .summary-tag {
+    background: var(--primary-light, #eef0ff);
+    color: var(--primary);
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .hint {
+    color: var(--gray-400);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+
+  /* Actions */
   .step-actions {
     display: flex;
     gap: 1rem;
@@ -514,6 +549,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    font-family: inherit;
   }
 
   .btn-primary {
@@ -522,7 +558,7 @@
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: var(--primary-dark);
+    background: var(--primary-dark, #2533cc);
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
   }
@@ -568,5 +604,20 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* Scrollbar */
+  .catalog-grid::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .catalog-grid::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 4px;
+  }
+
+  .catalog-grid::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 4px;
   }
 </style>

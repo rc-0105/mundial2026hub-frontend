@@ -1,16 +1,25 @@
+export interface SeleccionInfo {
+  idSeleccion: number | null;
+  nombre: string;
+  bandera: string | null;
+}
+
+export interface EstadioInfo {
+  idEstadio: number | null;
+  nombre: string;
+  ciudad: string;
+}
+
 export interface Partido {
   idPartido: number;
-  seleccionLocal: string;
-  seleccionVisitante: string;
-  golesLocal: number | null;
-  golesVisitante: number | null;
+  seleccionLocal: SeleccionInfo;
+  seleccionVisitante: SeleccionInfo;
+  marcadorLocal: number | null;
+  marcadorVisitante: number | null;
   estado: 'PROGRAMADO' | 'EN_JUEGO' | 'FINALIZADO';
-  estadio: string;
-  ciudad: string;
+  estadio: EstadioInfo;
   fase: string;
-  fechaHoraOriginalUtc: string;
-  fechaHoraLocalizada: string;
-  zonaHorariaAplicada: string;
+  fecha: string;
 }
 
 export interface PartidoApiResponse {
@@ -19,13 +28,6 @@ export interface PartidoApiResponse {
   actualizacionPendiente: boolean;
   data: Partido[];
   timestamp: string;
-}
-
-export interface PartidoDetalle extends Partido {
-  eventos?: EventoPartido[];
-  sustituciones?: Sustitucion[];
-  posesionLocal?: number | null;
-  posesionVisitante?: number | null;
 }
 
 export interface EventoPartido {
@@ -42,4 +44,11 @@ export interface Sustitucion {
   sale: string;
   entra: string;
   equipo: 'LOCAL' | 'VISITANTE';
+}
+
+export interface PartidoDetalle extends Partido {
+  eventos?: EventoPartido[];
+  sustituciones?: Sustitucion[];
+  posesionLocal?: number | null;
+  posesionVisitante?: number | null;
 }
