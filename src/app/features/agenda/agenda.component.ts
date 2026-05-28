@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
@@ -96,7 +96,7 @@ export class AgendaComponent implements OnInit, OnDestroy {
   readonly sinPreferencias = signal(false);
 
   private seleccionIds: number[] = [];
-  private estadioIds: number[] = [];
+  private estadioNombres: string[] = [];
   private ciudadNombres: string[] = [];
 
   private refreshInterval: ReturnType<typeof setInterval> | undefined;
@@ -118,13 +118,20 @@ export class AgendaComponent implements OnInit, OnDestroy {
       next: ({ prefs, partidos }) => {
         const p = prefs.data;
         this.seleccionIds = this.parseCsv(p.seleccionesFavoritas);
-        this.estadioIds = this.parseCsv(p.estadiosFavoritos);
+
+        // Map stadium IDs to names from the catalogo (estadio is now a string, not an object)
+        const estadioIds = this.parseCsv(p.estadiosFavoritos);
+        this.estadioNombres = estadioIds
+          .map(id => this.catalogo.estadios.find(e => e.id === id)?.nombre ?? '')
+          .filter(Boolean);
+
+        // Map city IDs to names from the catalogo
         const ciudadIds = this.parseCsv(p.ciudadesFavoritas);
         this.ciudadNombres = ciudadIds
           .map(id => this.catalogo.ciudades.find(c => c.id === id)?.nombre ?? '')
           .filter(Boolean);
 
-        const tienePref = this.seleccionIds.length > 0 || this.estadioIds.length > 0 || this.ciudadNombres.length > 0;
+        const tienePref = this.seleccionIds.length > 0 || this.estadioNombres.length > 0 || this.ciudadNombres.length > 0;
         this.sinPreferencias.set(!tienePref);
 
         this.partidos.set(this.filtrar(partidos.data));
@@ -151,6 +158,7 @@ export class AgendaComponent implements OnInit, OnDestroy {
     return todos.filter(p =>
       this.seleccionIds.includes(p.seleccionLocal.idSeleccion ?? -1) ||
       this.seleccionIds.includes(p.seleccionVisitante.idSeleccion ?? -1) ||
+      this.estadioNombres.includes(p.estadio) ||
       this.ciudadNombres.includes(p.ciudad)
     );
   }
