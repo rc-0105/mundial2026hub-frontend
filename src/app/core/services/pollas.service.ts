@@ -3,11 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
-import { Polla, PartidoDisponible, PronosticoRequest, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../models/polla.model';
+import { Polla, PollaSummary, PartidoDisponible, PronosticoRequest, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../models/polla.model';
 
 @Injectable({ providedIn: 'root' })
 export class PollasService {
   private readonly http = inject(HttpClient);
+
+  getMisPollas(): Observable<ApiResponse<PollaSummary[]>> {
+    return this.http.get<ApiResponse<PollaSummary[]>>(`${environment.apiUrl}/pollas/mis-pollas`);
+  }
 
   crearPolla(nombre: string): Observable<ApiResponse<Polla>> {
     return this.http.post<ApiResponse<Polla>>(`${environment.apiUrl}/pollas`, { nombre });

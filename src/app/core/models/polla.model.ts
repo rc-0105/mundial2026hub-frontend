@@ -8,6 +8,15 @@ export interface Polla {
   fechaCreacion: string;
 }
 
+export interface PollaSummary {
+  idPolla: number;
+  nombre: string;
+  codigoInvitacion: string;
+  enlaceInvitacion: string;
+  estado: 'ACTIVA' | 'FINALIZADA';
+  fechaCreacion: string;
+}
+
 export interface PollaAdmin {
   idUsuario: number;
   nombre: string;
