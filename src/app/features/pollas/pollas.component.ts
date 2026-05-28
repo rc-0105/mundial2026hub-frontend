@@ -201,7 +201,7 @@ interface ApuestaLocal {
                   </div>
 
                   <div class="partido-bet-footer">
-                    <span class="sede-info">{{ p.estadio }}, {{ p.ciudad }}</span>
+                    <span class="sede-info">{{ p.estadio.nombre }}, {{ p.estadio.ciudad }}</span>
                     <button class="btn-apostar"
                       [class.btn-apostado]="apuestasGuardadas().has(p.idPartido)"
                       [disabled]="savingId() === p.idPartido"

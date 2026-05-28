@@ -32,9 +32,9 @@ import { PartidoDetalle, EventoPartido, Sustitucion } from '../../../core/models
               <span class="hero-team-name">{{ p.seleccionLocal }}</span>
             </div>
             <div class="hero-score">
-              <span class="hero-score-val">{{ p.golesLocal ?? '-' }}</span>
+              <span class="hero-score-val">{{ p.marcadorLocal ?? '-' }}</span>
               <span class="hero-score-sep">-</span>
-              <span class="hero-score-val">{{ p.golesVisitante ?? '-' }}</span>
+              <span class="hero-score-val">{{ p.marcadorVisitante ?? '-' }}</span>
             </div>
             <div class="hero-team hero-team-right">
               <span class="hero-team-name">{{ p.seleccionVisitante }}</span>
@@ -43,7 +43,7 @@ import { PartidoDetalle, EventoPartido, Sustitucion } from '../../../core/models
           <div class="hero-meta">
             <span class="hero-phase">{{ p.fase }}</span>
             <span>{{ p.fechaHoraLocalizada }}</span>
-            <span>{{ p.estadio }}, {{ p.ciudad }}</span>
+            <span>{{ p.estadio.nombre }}, {{ p.estadio.ciudad }}</span>
           </div>
         </div>
 

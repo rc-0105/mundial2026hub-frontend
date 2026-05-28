@@ -51,9 +51,9 @@ import { Partido } from '../../core/models/partido.model';
                   @if (p.estado === 'PROGRAMADO') {
                     <span class="vs">VS</span>
                   } @else {
-                    <span class="score-val">{{ p.golesLocal ?? '-' }}</span>
+                    <span class="score-val">{{ p.marcadorLocal ?? '-' }}</span>
                     <span class="score-sep">-</span>
-                    <span class="score-val">{{ p.golesVisitante ?? '-' }}</span>
+                    <span class="score-val">{{ p.marcadorVisitante ?? '-' }}</span>
                   }
                 </div>
                 <div class="team team-visitante" [class.team-favorita]="esFavorita(p.seleccionVisitante.idSeleccion)">
@@ -62,7 +62,7 @@ import { Partido } from '../../core/models/partido.model';
               </div>
               <div class="match-info">
                 <span>{{ p.fecha | date:'dd/MM/yyyy HH:mm' }}</span>
-                <span>{{ p.estadio }}, {{ p.ciudad }}</span>
+                <span>{{ p.estadio.nombre }}, {{ p.estadio.ciudad }}</span>
               </div>
               <div class="match-actions">
                 @if (p.estado === 'FINALIZADO' || p.estado === 'EN_JUEGO') {
@@ -96,7 +96,7 @@ export class AgendaComponent implements OnInit, OnDestroy {
   readonly sinPreferencias = signal(false);
 
   private seleccionIds: number[] = [];
-  private estadioNombres: string[] = [];
+  private estadioIds: number[] = [];
   private ciudadNombres: string[] = [];
 
   private refreshInterval: ReturnType<typeof setInterval> | undefined;
@@ -118,20 +118,13 @@ export class AgendaComponent implements OnInit, OnDestroy {
       next: ({ prefs, partidos }) => {
         const p = prefs.data;
         this.seleccionIds = this.parseCsv(p.seleccionesFavoritas);
-
-        // Map stadium IDs to names from the catalogo (estadio is now a string, not an object)
-        const estadioIds = this.parseCsv(p.estadiosFavoritos);
-        this.estadioNombres = estadioIds
-          .map(id => this.catalogo.estadios.find(e => e.id === id)?.nombre ?? '')
-          .filter(Boolean);
-
-        // Map city IDs to names from the catalogo
+        this.estadioIds = this.parseCsv(p.estadiosFavoritos);
         const ciudadIds = this.parseCsv(p.ciudadesFavoritas);
         this.ciudadNombres = ciudadIds
           .map(id => this.catalogo.ciudades.find(c => c.id === id)?.nombre ?? '')
           .filter(Boolean);
 
-        const tienePref = this.seleccionIds.length > 0 || this.estadioNombres.length > 0 || this.ciudadNombres.length > 0;
+        const tienePref = this.seleccionIds.length > 0 || this.estadioIds.length > 0 || this.ciudadNombres.length > 0;
         this.sinPreferencias.set(!tienePref);
 
         this.partidos.set(this.filtrar(partidos.data));
@@ -158,8 +151,8 @@ export class AgendaComponent implements OnInit, OnDestroy {
     return todos.filter(p =>
       this.seleccionIds.includes(p.seleccionLocal.idSeleccion ?? -1) ||
       this.seleccionIds.includes(p.seleccionVisitante.idSeleccion ?? -1) ||
-      this.estadioNombres.includes(p.estadio) ||
-      this.ciudadNombres.includes(p.ciudad)
+      this.estadioIds.includes(p.estadio.idEstadio ?? -1) ||
+      this.ciudadNombres.includes(p.estadio.ciudad)
     );
   }
 

@@ -129,7 +129,7 @@ import { PollaSummary, RankingEntry, MiPronostico } from '../../../core/models/p
                       <div class="resultado-real">
                         <span class="resultado-label">Resultado real:</span>
                         <span class="resultado-score">
-                          {{ p.partido.golesLocal }} - {{ p.partido.golesVisitante }}
+                          {{ p.partido.marcadorLocal }} - {{ p.partido.marcadorVisitante }}
                         </span>
                         <span class="resultado-chip" [class.acertado]="acerto(p)" [class.fallado]="!acerto(p)">
                           {{ acerto(p) ? '✓ Acertaste' : '✗ Fallaste' }}
@@ -318,9 +318,9 @@ export class PollaDetalleComponent implements OnInit {
 
   acerto(p: MiPronostico): boolean {
     if (p.partido.estado !== 'FINALIZADO') return false;
-    const golesL = p.partido.golesLocal ?? 0;
-    const golesV = p.partido.golesVisitante ?? 0;
-    const realGanador = golesL > golesV ? 'LOCAL' : golesV > golesL ? 'VISITANTE' : 'EMPATE';
+    const marcadorL = p.partido.marcadorLocal ?? 0;
+    const marcadorV = p.partido.marcadorVisitante ?? 0;
+    const realGanador = marcadorL > marcadorV ? 'LOCAL' : marcadorV > marcadorL ? 'VISITANTE' : 'EMPATE';
     return p.ganadorPronosticado === realGanador;
   }
 

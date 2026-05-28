@@ -25,8 +25,8 @@ export interface PartidoPronostico {
   fechaHora: string;
   fase: string;
   estado: 'PROGRAMADO' | 'EN_JUEGO' | 'FINALIZADO';
-  golesLocal: number | null;
-  golesVisitante: number | null;
+  marcadorLocal: number | null;
+  marcadorVisitante: number | null;
 }
 
 export interface MiPronostico {
@@ -50,11 +50,10 @@ export interface PartidoDisponible {
   idPartido: number;
   seleccionLocal: string;
   seleccionVisitante: string;
-  golesLocal: number | null;
-  golesVisitante: number | null;
+  marcadorLocal: number | null;
+  marcadorVisitante: number | null;
   fechaHora: string;
-  estadio: string;
-  ciudad: string;
+  estadio: { idEstadio: number | null; nombre: string; ciudad: string };
   fase: string;
   estado: 'PROGRAMADO' | 'EN_JUEGO' | 'FINALIZADO';
   provisional: boolean;
