@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
-import { Polla, PollaSummary, PartidoDisponible, PronosticoRequest, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../models/polla.model';
+import { Polla, PollaSummary, MiPronostico, PartidoDisponible, PronosticoRequest, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../models/polla.model';
 
 @Injectable({ providedIn: 'root' })
 export class PollasService {
@@ -11,6 +11,14 @@ export class PollasService {
 
   getMisPollas(): Observable<ApiResponse<PollaSummary[]>> {
     return this.http.get<ApiResponse<PollaSummary[]>>(`${environment.apiUrl}/pollas/mis-pollas`);
+  }
+
+  getPolla(idPolla: number): Observable<ApiResponse<PollaSummary>> {
+    return this.http.get<ApiResponse<PollaSummary>>(`${environment.apiUrl}/pollas/${idPolla}`);
+  }
+
+  getMisPronosticos(idPolla: number): Observable<ApiResponse<MiPronostico[]>> {
+    return this.http.get<ApiResponse<MiPronostico[]>>(`${environment.apiUrl}/pollas/${idPolla}/mis-pronosticos`);
   }
 
   crearPolla(nombre: string): Observable<ApiResponse<Polla>> {

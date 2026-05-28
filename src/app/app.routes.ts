@@ -65,6 +65,11 @@ export const routes: Routes = [
           import('./features/pollas/pollas.component').then(m => m.PollasComponent),
       },
       {
+        path: 'pollas/:id',
+        loadComponent: () =>
+          import('./features/pollas/polla-detalle/polla-detalle.component').then(m => m.PollaDetalleComponent),
+      },
+      {
         path: 'notificaciones',
         loadComponent: () =>
           import('./features/notificaciones/notificaciones.component').then(

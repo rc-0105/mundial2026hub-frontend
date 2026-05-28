@@ -1,6 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { PollasService } from '../../core/services/pollas.service';
 import { Polla, PollaSummary, PartidoDisponible } from '../../core/models/polla.model';
 
@@ -14,7 +15,7 @@ interface ApuestaLocal {
 
 @Component({
   selector: 'app-pollas',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, RouterLink],
   template: `
     <div class="page-container">
 
@@ -60,8 +61,9 @@ interface ApuestaLocal {
                 <div class="polla-fecha">Creada el {{ p.fechaCreacion | date:'dd/MM/yyyy' }}</div>
 
                 <div class="polla-actions">
+                  <a [routerLink]="['/pollas', p.idPolla]" class="btn-entrar">Entrar →</a>
                   <button class="btn-link-copy" (click)="copiarEnlace(p)">
-                    {{ enlaceCopiado() === p.idPolla ? '✓ Enlace copiado' : 'Copiar enlace de invitación' }}
+                    {{ enlaceCopiado() === p.idPolla ? '✓ Copiado' : 'Copiar enlace' }}
                   </button>
                 </div>
               </div>
@@ -300,9 +302,16 @@ interface ApuestaLocal {
 
     .polla-fecha { font-size: 0.75rem; color: var(--gray-400); }
 
-    .polla-actions { margin-top: auto; }
+    .polla-actions { margin-top: auto; display: flex; gap: 0.5rem; }
+    .btn-entrar {
+      flex: 1; padding: 0.5rem; background: var(--primary);
+      color: white; border: none; border-radius: var(--radius);
+      font-size: 0.82rem; font-weight: 700; cursor: pointer;
+      text-align: center; text-decoration: none; transition: background 0.15s;
+    }
+    .btn-entrar:hover { background: var(--primary-dark); }
     .btn-link-copy {
-      width: 100%; padding: 0.5rem; background: transparent;
+      flex: 1; padding: 0.5rem; background: transparent;
       color: var(--primary); border: 1px solid var(--primary);
       border-radius: var(--radius); font-size: 0.82rem; font-weight: 600;
       cursor: pointer; transition: all 0.15s;

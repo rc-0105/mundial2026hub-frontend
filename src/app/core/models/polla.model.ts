@@ -15,6 +15,28 @@ export interface PollaSummary {
   enlaceInvitacion: string;
   estado: 'ACTIVA' | 'FINALIZADA';
   fechaCreacion: string;
+  esAdmin?: boolean;
+}
+
+export interface PartidoPronostico {
+  idPartido: number;
+  seleccionLocal: string;
+  seleccionVisitante: string;
+  fechaHora: string;
+  fase: string;
+  estado: 'PROGRAMADO' | 'EN_JUEGO' | 'FINALIZADO';
+  golesLocal: number | null;
+  golesVisitante: number | null;
+}
+
+export interface MiPronostico {
+  idPronostico: number;
+  partido: PartidoPronostico;
+  golesLocal: number;
+  golesVisitante: number;
+  ganadorPronosticado: 'LOCAL' | 'VISITANTE' | 'EMPATE';
+  periodoCerrado: boolean;
+  fechaRegistro: string;
 }
 
 export interface PollaAdmin {
