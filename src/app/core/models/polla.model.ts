@@ -15,6 +15,26 @@ export interface PollaAdmin {
   avatarUrl: string | null;
 }
 
+export interface PartidoDisponible {
+  idPartido: number;
+  seleccionLocal: string;
+  seleccionVisitante: string;
+  golesLocal: number | null;
+  golesVisitante: number | null;
+  fechaHora: string;
+  estadio: string;
+  ciudad: string;
+  fase: string;
+  estado: 'PROGRAMADO' | 'EN_JUEGO' | 'FINALIZADO';
+  provisional: boolean;
+}
+
+export interface PronosticoRequest {
+  golesLocal: number;
+  golesVisitante: number;
+  ganadorPronosticado: 'LOCAL' | 'VISITANTE' | 'EMPATE';
+}
+
 export interface RankingEntry {
   posicion: number;
   nombre: string;

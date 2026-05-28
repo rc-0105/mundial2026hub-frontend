@@ -1,213 +1,408 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { DatePipe, SlicePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { PollasService } from '../../core/services/pollas.service';
-import { Polla, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../../core/models/polla.model';
+import { Polla, PartidoDisponible } from '../../core/models/polla.model';
+
+interface ApuestaLocal {
+  golesLocal: number;
+  golesVisitante: number;
+}
 
 @Component({
   selector: 'app-pollas',
-  imports: [ReactiveFormsModule, DatePipe, SlicePipe],
+  imports: [ReactiveFormsModule, DatePipe],
   template: `
     <div class="page-container">
-      <h1>Pollas</h1>
-      <p class="subtitle">Crea tu propia polla y compite con amigos</p>
 
-      <div class="form-section" style="max-width: 560px;">
-        <h2>Crear nueva polla</h2>
-        <p class="section-desc">Ingresa un nombre para tu polla y obtendrás un código de invitación único.</p>
-
-        <form [formGroup]="form" (ngSubmit)="crear()" style="display: flex; flex-direction: column; gap: 1rem;">
-          <div class="form-group">
-            <label for="nombre">Nombre de la polla</label>
-            <input
-              id="nombre"
-              type="text"
-              formControlName="nombre"
-              placeholder="Ej: Polla familiar 2026"
-              maxlength="100"
-            />
-            @if (form.controls.nombre.invalid && form.controls.nombre.touched) {
-              <span class="field-error">El nombre es obligatorio</span>
-            }
-          </div>
-
-          @if (error()) {
-            <div class="error">{{ error() }}</div>
-          }
-
-          <div class="form-actions">
-            <button type="submit" class="btn-primary" [disabled]="loading() || form.invalid">
-              @if (loading()) {
-                Creando...
-              } @else {
-                Crear polla
-              }
-            </button>
-          </div>
-        </form>
+      <!-- STEP INDICATOR -->
+      <div class="steps-bar">
+        <div class="step" [class.active]="step() >= 1" [class.done]="step() > 1">
+          <span class="step-num">1</span>
+          <span class="step-label">Crear polla</span>
+        </div>
+        <div class="step-line" [class.done]="step() > 1"></div>
+        <div class="step" [class.active]="step() >= 2" [class.done]="step() > 2">
+          <span class="step-num">2</span>
+          <span class="step-label">Tus apuestas</span>
+        </div>
+        <div class="step-line" [class.done]="step() > 2"></div>
+        <div class="step" [class.active]="step() >= 3">
+          <span class="step-num">3</span>
+          <span class="step-label">Compartir</span>
+        </div>
       </div>
 
-      @if (pollaCreada(); as polla) {
-        <div class="success-card">
-          <div class="success-icon">🎉</div>
-          <h2>¡Polla creada exitosamente!</h2>
-          <p class="success-desc">Comparte el siguiente código con tus amigos para que se unan:</p>
+      <!-- ── STEP 1: CREAR POLLA ── -->
+      @if (step() === 1) {
+        <div class="step-card">
+          <h1>Crear polla</h1>
+          <p class="subtitle">Dale un nombre a tu polla. Después podrás agregar tus pronósticos antes de compartirla.</p>
 
-          <div class="code-box">
-            <span class="code-text">{{ polla.codigoInvitacion }}</span>
-            <button class="btn-copy" (click)="copiarCodigo()">
-              {{ copiado() ? 'Copiado' : 'Copiar' }}
-            </button>
-          </div>
-
-          <div class="invite-link">
-            <span class="link-label">O comparte este enlace:</span>
-            <div class="link-row">
-              <input type="text" [value]="polla.enlaceInvitacion" readonly class="link-input" />
-              <button class="btn-secondary" (click)="copiarEnlace()">
-                {{ enlaceCopiado() ? 'Copiado' : 'Copiar enlace' }}
-              </button>
-            </div>
-          </div>
-
-          <p class="success-hint">
-            Eres el administrador de esta polla. Podrás finalizarla cuando termine el torneo.
-          </p>
-
-          @if (polla.estado === 'ACTIVA') {
-            <div class="finalizar-section">
-              <button class="btn-danger" (click)="finalizar()" [disabled]="finalizarLoading()">
-                @if (finalizarLoading()) {
-                  Finalizando...
-                } @else {
-                  Finalizar polla
-                }
-              </button>
-              <p class="finalizar-hint">Al finalizar la polla se calcularán los ganadores y se otorgarán los premios digitales.</p>
-            </div>
-          }
-
-          @if (finalizarError()) {
-            <div class="error">{{ finalizarError() }}</div>
-          }
-        </div>
-
-        @if (ganadores(); as ganadores) {
-          <div class="prize-section">
-            <h2>Premio digital</h2>
-            <p class="section-desc">La polla ha finalizado. Los ganadores han recibido su certificado digital de campeón.</p>
-
-            <div class="winners-list">
-              @for (g of ganadores; track g.idMiembro) {
-                <div class="winner-card">
-                  <div class="trophy">🏆</div>
-                  <div class="winner-info">
-                    <strong class="winner-name">{{ g.usuario.nombre }}</strong>
-                    <span class="winner-score">{{ g.puntaje }} puntos</span>
-                  </div>
-                  <div class="prize-badge">
-                    <span class="prize-label">{{ g.premioDigital }}</span>
-                  </div>
-                </div>
+          <form [formGroup]="form" (ngSubmit)="crearPolla()" style="display:flex;flex-direction:column;gap:1rem;margin-top:1.5rem;">
+            <div class="form-group">
+              <label for="nombre">Nombre de la polla</label>
+              <input id="nombre" type="text" formControlName="nombre"
+                placeholder="Ej: Polla familiar 2026" maxlength="100" />
+              @if (form.controls.nombre.invalid && form.controls.nombre.touched) {
+                <span class="field-error">El nombre es obligatorio</span>
               }
             </div>
+
+            @if (errorStep1()) {
+              <div class="error">{{ errorStep1() }}</div>
+            }
+
+            <button type="submit" class="btn-primary" [disabled]="loadingStep1() || form.invalid">
+              {{ loadingStep1() ? 'Creando...' : 'Crear y agregar apuestas →' }}
+            </button>
+          </form>
+        </div>
+      }
+
+      <!-- ── STEP 2: APUESTAS ── -->
+      @if (step() === 2) {
+        <div class="step2-header">
+          <div>
+            <h1>Tus apuestas</h1>
+            <p class="subtitle">Elegí los partidos en los que querés apostar y pronosticá el resultado.</p>
+          </div>
+          <button class="btn-skip" (click)="irACompartir()">
+            Continuar sin apostar más →
+          </button>
+        </div>
+
+        @if (apuestasGuardadas().size > 0) {
+          <div class="apuestas-counter">
+            ✓ {{ apuestasGuardadas().size }} apuesta{{ apuestasGuardadas().size === 1 ? '' : 's' }} registrada{{ apuestasGuardadas().size === 1 ? '' : 's' }}
           </div>
         }
 
-        @if (ranking(); as list) {
-          <div class="ranking-section">
-            <h2>Ranking</h2>
-            @if (list.length === 0) {
-              <p class="ranking-empty">Aún no hay miembros en el ranking.</p>
-            } @else {
-              <div class="ranking-table">
-                <div class="ranking-header">
-                  <span class="col-pos">#</span>
-                  <span class="col-name">Participante</span>
-                  <span class="col-score">Puntos</span>
-                  <span class="col-prize">Premio</span>
+        @if (loadingPartidos()) {
+          <div class="loading">Cargando partidos disponibles...</div>
+        } @else if (partidos().length === 0) {
+          <div class="empty-state">
+            <p>No hay partidos disponibles para apostar en este momento.</p>
+            <button class="btn-primary" (click)="irACompartir()">Continuar →</button>
+          </div>
+        } @else {
+          <div class="partidos-grid">
+            @for (p of partidos(); track p.idPartido) {
+              <div class="partido-bet-card" [class.bet-saved]="apuestasGuardadas().has(p.idPartido)">
+
+                <div class="partido-bet-header">
+                  <span class="fase-tag">{{ labelFase(p.fase) }}</span>
+                  <span class="fecha-tag">{{ p.fechaHora | date:'dd MMM · HH:mm' }}</span>
+                  @if (apuestasGuardadas().has(p.idPartido)) {
+                    <span class="saved-badge">✓ Apostado</span>
+                  }
                 </div>
-                @for (r of list; track r.posicion) {
-                  <div class="ranking-row" [class.gold]="r.posicion === 1" [class.silver]="r.posicion === 2" [class.bronze]="r.posicion === 3">
-                    <span class="col-pos">{{ r.posicion }}</span>
-                    <span class="col-name">{{ r.nombre }}</span>
-                    <span class="col-score">{{ r.puntaje }}</span>
-                    <span class="col-prize">{{ r.premioDigital ?? '—' }}</span>
+
+                <div class="partido-bet-teams">
+                  <span class="team-name">{{ p.seleccionLocal }}</span>
+                  <div class="score-inputs">
+                    <input type="number" min="0" max="99"
+                      [value]="getApuesta(p.idPartido).golesLocal"
+                      (input)="setGolesLocal(p.idPartido, $event)"
+                      class="score-input" />
+                    <span class="score-sep">-</span>
+                    <input type="number" min="0" max="99"
+                      [value]="getApuesta(p.idPartido).golesVisitante"
+                      (input)="setGolesVisitante(p.idPartido, $event)"
+                      class="score-input" />
                   </div>
+                  <span class="team-name">{{ p.seleccionVisitante }}</span>
+                </div>
+
+                <div class="resultado-preview">
+                  Resultado pronosticado:
+                  <strong>{{ labelResultado(p.idPartido) }}</strong>
+                </div>
+
+                <div class="partido-bet-footer">
+                  <span class="sede-info">{{ p.estadio }}, {{ p.ciudad }}</span>
+                  <button class="btn-apostar"
+                    [class.btn-apostado]="apuestasGuardadas().has(p.idPartido)"
+                    [disabled]="savingId() === p.idPartido"
+                    (click)="guardarApuesta(p)">
+                    @if (savingId() === p.idPartido) {
+                      Guardando...
+                    } @else if (apuestasGuardadas().has(p.idPartido)) {
+                      Actualizar apuesta
+                    } @else {
+                      Apostar
+                    }
+                  </button>
+                </div>
+
+                @if (errorApuesta().get(p.idPartido)) {
+                  <span class="field-error" style="margin-top:0.25rem;">{{ errorApuesta().get(p.idPartido) }}</span>
                 }
               </div>
             }
           </div>
+
+          <div class="step2-footer">
+            <button class="btn-primary" (click)="irACompartir()">
+              Continuar con el enlace →
+            </button>
+          </div>
         }
+      }
 
-        <div class="audit-section">
-          <h2>Auditoría de pronósticos</h2>
-          <p class="section-desc">Todos los pronósticos registrados quedan almacenados de forma inmutable con sello de tiempo.</p>
+      <!-- ── STEP 3: COMPARTIR ── -->
+      @if (step() === 3) {
+        <div class="step-card share-card">
+          <div class="success-icon">🎉</div>
+          <h1>¡Todo listo!</h1>
+          <p class="subtitle">
+            Creaste la polla <strong>{{ pollaCreada()?.nombre }}</strong>
+            @if (apuestasGuardadas().size > 0) {
+              con {{ apuestasGuardadas().size }} apuesta{{ apuestasGuardadas().size === 1 ? '' : 's' }} registrada{{ apuestasGuardadas().size === 1 ? '' : 's' }}.
+            } @else {
+              . Podés agregar apuestas más adelante.
+            }
+          </p>
 
-          <div class="audit-actions">
-            <button class="btn-outline" (click)="cargarAuditoria()" [disabled]="auditLoading()">
-              @if (auditLoading()) {
-                Cargando...
-              } @else {
-                Ver historial de auditoría
-              }
+          <p class="share-desc">Compartí este código con tus amigos para que se unan:</p>
+
+          <div class="code-box">
+            <span class="code-text">{{ pollaCreada()?.codigoInvitacion }}</span>
+            <button class="btn-copy" (click)="copiarCodigo()">
+              {{ copiado() ? '¡Copiado!' : 'Copiar' }}
             </button>
           </div>
 
-          @if (auditEventos(); as eventos) {
-            <div class="audit-list">
-              @if (eventos.length === 0) {
-                <div class="audit-empty">
-                  No hay eventos de auditoría registrados para esta polla. Los pronósticos aparecerán aquí una vez que los miembros comiencen a registrar sus predicciones.
-                </div>
-              } @else {
-                <table class="audit-table">
-                  <thead>
-                    <tr>
-                      <th>Fecha/Hora</th>
-                      <th>Evento</th>
-                      <th>Detalle</th>
-                      <th>ID Correlación</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (evento of eventos; track evento.idEvento) {
-                      <tr>
-                        <td class="audit-timestamp">{{ evento.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
-                        <td><span class="badge badge-audit">{{ evento.tipoEvento }}</span></td>
-                        <td class="audit-detail">{{ evento.detalle }}</td>
-                        <td class="audit-correlation">{{ evento.idCorrelacion | slice:0:8 }}...</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              }
+          <div class="invite-link">
+            <span class="link-label">O compartí este enlace directo:</span>
+            <div class="link-row">
+              <input type="text" [value]="pollaCreada()?.enlaceInvitacion" readonly class="link-input" />
+              <button class="btn-secondary" (click)="copiarEnlace()">
+                {{ enlaceCopiado() ? '¡Copiado!' : 'Copiar enlace' }}
+              </button>
             </div>
-          }
+          </div>
 
-          @if (auditError()) {
-            <div class="error">{{ auditError() }}</div>
-          }
+          <div class="share-actions">
+            <button class="btn-outline" (click)="volverAApuestas()">← Agregar más apuestas</button>
+            <button class="btn-primary" (click)="reiniciar()">Crear otra polla</button>
+          </div>
         </div>
       }
+
     </div>
   `,
   styles: [`
-    .field-error { font-size: 0.8rem; color: #dc2626; margin-top: 0.25rem; display: block; }
-    .success-card {
-      max-width: 560px;
-      margin-top: 2rem;
+    /* Steps bar */
+    .steps-bar {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 2.5rem;
+      max-width: 480px;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+    .step-num {
+      width: 2rem; height: 2rem;
+      border-radius: 50%;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 700;
+      transition: all 0.2s;
+    }
+    .step.active .step-num { background: var(--primary); color: white; }
+    .step.done .step-num { background: #16a34a; color: white; }
+    .step-label { font-size: 0.72rem; color: var(--gray-400); font-weight: 500; white-space: nowrap; }
+    .step.active .step-label { color: var(--primary); font-weight: 700; }
+    .step-line {
+      flex: 1; height: 2px;
+      background: var(--gray-200);
+      margin: 0 0.5rem;
+      margin-bottom: 1rem;
+      transition: background 0.2s;
+    }
+    .step-line.done { background: #16a34a; }
+
+    /* Step cards */
+    .step-card {
+      max-width: 520px;
+    }
+    .step-card h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; }
+
+    /* Step 2 */
+    .step2-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .step2-header h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.25rem; }
+    .btn-skip {
+      padding: 0.55rem 1.25rem;
+      background: transparent;
+      color: var(--gray-500);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .btn-skip:hover { background: var(--gray-50); color: var(--gray-700); }
+
+    .apuestas-counter {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius);
+      padding: 0.4rem 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+
+    .partidos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+
+    .partido-bet-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 2rem;
-      box-shadow: var(--shadow);
-      text-align: center;
-      animation: fadeIn 0.4s ease;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
+    .partido-bet-card:hover { box-shadow: var(--shadow); }
+    .partido-bet-card.bet-saved {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+
+    .partido-bet-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .fase-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .fecha-tag {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+    }
+    .saved-badge {
+      margin-left: auto;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #15803d;
+      background: #dcfce7;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .partido-bet-teams {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .team-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--gray-900);
+    }
+    .team-name:last-child { text-align: right; }
+    .score-inputs {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+    .score-input {
+      width: 2.4rem;
+      text-align: center;
+      padding: 0.35rem 0.25rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      background: var(--surface);
+      -moz-appearance: textfield;
+    }
+    .score-input::-webkit-inner-spin-button,
+    .score-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .score-input:focus { border-color: var(--primary); outline: none; }
+    .score-sep { font-weight: 700; color: var(--gray-400); }
+
+    .resultado-preview {
+      font-size: 0.78rem;
+      color: var(--gray-500);
+      text-align: center;
+    }
+    .resultado-preview strong { color: var(--primary-dark); }
+
+    .partido-bet-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .sede-info { font-size: 0.75rem; color: var(--gray-400); }
+    .btn-apostar {
+      padding: 0.45rem 1rem;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-apostar:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-apostar.btn-apostado { background: #15803d; }
+    .btn-apostar.btn-apostado:hover:not(:disabled) { background: #166534; }
+    .btn-apostar:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .step2-footer {
+      margin-top: 2rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Step 3 - share */
+    .share-card { text-align: center; }
     .success-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-    .success-card h2 { font-size: 1.25rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.5rem; }
-    .success-desc { font-size: 0.9rem; color: var(--gray-500); margin-bottom: 1.5rem; }
+    .share-card h1 { font-size: 1.5rem; font-weight: 800; }
+    .share-desc { font-size: 0.9rem; color: var(--gray-600); margin: 1.5rem 0 0.75rem; }
     .code-box {
       display: inline-flex;
       align-items: center;
@@ -216,7 +411,7 @@ import { Polla, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../../
       border: 2px dashed var(--primary);
       border-radius: var(--radius-md);
       padding: 1rem 1.5rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
     }
     .code-text {
       font-size: 1.5rem;
@@ -234,124 +429,32 @@ import { Polla, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../../
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.15s;
     }
     .btn-copy:hover { background: var(--primary-dark); }
-    .invite-link { margin-bottom: 1rem; }
-    .link-label { display: block; font-size: 0.85rem; color: var(--gray-400); margin-bottom: 0.5rem; }
-    .link-row { display: flex; gap: 0.5rem; }
+    .invite-link { margin-bottom: 1.5rem; }
+    .link-label { display: block; font-size: 0.82rem; color: var(--gray-400); margin-bottom: 0.5rem; }
+    .link-row { display: flex; gap: 0.5rem; text-align: left; }
     .link-input {
       flex: 1;
       padding: 0.5rem 0.75rem;
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--gray-600);
       background: var(--gray-50);
     }
-    .success-hint { font-size: 0.8rem; color: var(--gray-400); margin-top: 1rem; }
-    .finalizar-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-    .finalizar-hint { font-size: 0.75rem; color: var(--gray-400); margin-top: 0.5rem; }
-    .btn-danger {
-      padding: 0.6rem 1.5rem;
-      background: #dc2626;
-      color: white;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 0.9rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn-danger:hover { background: #b91c1c; }
-    .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
-    .prize-section {
-      max-width: 600px;
-      margin-top: 2rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 2rem;
-      box-shadow: var(--shadow);
-      animation: fadeIn 0.4s ease;
-    }
-    .prize-section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; }
-    .winners-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
-    .winner-card {
+    .share-actions {
       display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem;
-      background: var(--gray-50);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
     }
-    .trophy { font-size: 1.5rem; }
-    .winner-info { flex: 1; display: flex; flex-direction: column; }
-    .winner-name { font-size: 0.95rem; color: var(--gray-900); }
-    .winner-score { font-size: 0.8rem; color: var(--gray-500); }
-    .prize-badge {
-      padding: 0.25rem 0.75rem;
-      background: #fef3c7;
-      border: 1px solid #fbbf24;
-      border-radius: var(--radius-sm);
-    }
-    .prize-label { font-size: 0.7rem; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.03em; }
-    .ranking-section {
-      max-width: 560px;
-      margin-top: 2rem;
-    }
-    .ranking-section h2 { font-size: 1.1rem; font-weight: 700; color: var(--gray-900); margin-bottom: 1rem; }
-    .ranking-empty { font-size: 0.85rem; color: var(--gray-400); }
-    .ranking-table {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-    .ranking-header {
-      display: grid;
-      grid-template-columns: 3rem 1fr 5rem 5rem;
-      gap: 0.5rem;
-      padding: 0.7rem 1rem;
-      background: var(--gray-50);
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--gray-500);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .ranking-row {
-      display: grid;
-      grid-template-columns: 3rem 1fr 5rem 5rem;
-      gap: 0.5rem;
-      padding: 0.7rem 1rem;
-      align-items: center;
-      border-top: 1px solid var(--border);
-      font-size: 0.85rem;
-      transition: background 0.15s;
-    }
-    .ranking-row:hover { background: var(--gray-50); }
-    .ranking-row.gold { background: #fffbeb; }
-    .ranking-row.silver { background: #f8fafc; }
-    .ranking-row.bronze { background: #fef2f2; }
-    .col-pos { font-weight: 700; color: var(--gray-700); text-align: center; }
-    .col-name { font-weight: 500; color: var(--gray-900); }
-    .col-score { font-weight: 700; color: var(--primary-dark); text-align: center; }
-    .col-prize { font-size: 0.8rem; color: var(--gray-500); text-align: center; }
-    .audit-section {
-      max-width: 800px;
-      margin-top: 2rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 2rem;
-      box-shadow: var(--shadow);
-      animation: fadeIn 0.4s ease;
-    }
-    .audit-section h2 { font-size: 1.15rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem; }
-    .audit-actions { margin: 1rem 0; }
+
+    .field-error { font-size: 0.78rem; color: #dc2626; display: block; }
     .btn-outline {
-      padding: 0.5rem 1.25rem;
+      padding: 0.55rem 1.25rem;
       background: transparent;
       color: var(--primary);
       border: 1px solid var(--primary);
@@ -359,55 +462,22 @@ import { Polla, RankingEntry, EventoAuditoria, PollaMiembroWinner } from '../../
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
     }
     .btn-outline:hover { background: var(--primary-light); }
-    .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
-    .audit-empty {
-      padding: 2rem;
-      text-align: center;
-      color: var(--gray-400);
-      font-size: 0.9rem;
-      background: var(--gray-50);
+    .btn-secondary {
+      padding: 0.5rem 1rem;
+      background: var(--gray-100);
+      color: var(--gray-700);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      border: 1px dashed var(--border);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
     }
-    .audit-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.75rem;
-    }
-    .audit-table th {
-      text-align: left;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--gray-400);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 0.6rem 0.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .audit-table td {
-      padding: 0.6rem 0.5rem;
-      font-size: 0.85rem;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-    .audit-table tbody tr:hover { background: var(--gray-50); }
-    .audit-timestamp { white-space: nowrap; color: var(--gray-500); font-size: 0.8rem; }
-    .audit-detail { color: var(--gray-700); }
-    .audit-correlation { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--gray-400); }
-    .badge-audit {
-      display: inline-block;
-      padding: 0.15rem 0.5rem;
-      font-size: 0.7rem;
-      font-weight: 700;
-      border-radius: var(--radius-sm);
-      background: #fef3c7;
-      color: #92400e;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
+    .btn-secondary:hover { background: var(--gray-200); }
   `]
 })
 export class PollasComponent {
@@ -418,100 +488,160 @@ export class PollasComponent {
     nombre: ['', [Validators.required, Validators.maxLength(100)]],
   });
 
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly step = signal<1 | 2 | 3>(1);
   readonly pollaCreada = signal<Polla | null>(null);
+
+  // Step 1
+  readonly loadingStep1 = signal(false);
+  readonly errorStep1 = signal<string | null>(null);
+
+  // Step 2
+  readonly loadingPartidos = signal(false);
+  readonly partidos = signal<PartidoDisponible[]>([]);
+  readonly savingId = signal<number | null>(null);
+  readonly apuestasGuardadas = signal<Set<number>>(new Set());
+  readonly errorApuesta = signal<Map<number, string>>(new Map());
+
+  // Map idPartido → apuesta local (aún no guardada)
+  private readonly apuestasLocales = new Map<number, ApuestaLocal>();
+
+  // Step 3
   readonly copiado = signal(false);
   readonly enlaceCopiado = signal(false);
-  readonly ranking = signal<RankingEntry[] | null>(null);
-  readonly finalizarLoading = signal(false);
-  readonly finalizarError = signal<string | null>(null);
-  readonly ganadores = signal<PollaMiembroWinner[] | null>(null);
-  readonly auditLoading = signal(false);
-  readonly auditError = signal<string | null>(null);
-  readonly auditEventos = signal<EventoAuditoria[] | null>(null);
 
-  crear(): void {
+  // ── Step 1 ──────────────────────────────────
+  crearPolla(): void {
     if (this.form.invalid) return;
-
-    this.loading.set(true);
-    this.error.set(null);
-    this.pollaCreada.set(null);
+    this.loadingStep1.set(true);
+    this.errorStep1.set(null);
 
     this.pollasService.crearPolla(this.form.getRawValue().nombre).subscribe({
       next: res => {
         this.pollaCreada.set(res.data);
-        this.ranking.set(null);
         this.form.reset();
-        this.loading.set(false);
-
-        this.pollasService.obtenerRanking(res.data.idPolla).subscribe({
-          next: rankRes => this.ranking.set(rankRes.data),
-        });
+        this.loadingStep1.set(false);
+        this.step.set(2);
+        this.cargarPartidos(res.data.idPolla);
       },
       error: () => {
-        this.error.set('Error al crear la polla. Intenta nuevamente.');
-        this.loading.set(false);
+        this.errorStep1.set('Error al crear la polla. Intentá nuevamente.');
+        this.loadingStep1.set(false);
       }
     });
   }
 
-  copiarCodigo(): void {
+  // ── Step 2 ──────────────────────────────────
+  private cargarPartidos(idPolla: number): void {
+    this.loadingPartidos.set(true);
+    this.pollasService.getPartidosDisponibles(idPolla).subscribe({
+      next: res => {
+        this.partidos.set(res.data);
+        this.loadingPartidos.set(false);
+      },
+      error: () => this.loadingPartidos.set(false)
+    });
+  }
+
+  getApuesta(idPartido: number): ApuestaLocal {
+    if (!this.apuestasLocales.has(idPartido)) {
+      this.apuestasLocales.set(idPartido, { golesLocal: 0, golesVisitante: 0 });
+    }
+    return this.apuestasLocales.get(idPartido)!;
+  }
+
+  setGolesLocal(idPartido: number, event: Event): void {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    this.apuestasLocales.set(idPartido, {
+      ...this.getApuesta(idPartido),
+      golesLocal: isNaN(val) ? 0 : Math.max(0, val),
+    });
+  }
+
+  setGolesVisitante(idPartido: number, event: Event): void {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    this.apuestasLocales.set(idPartido, {
+      ...this.getApuesta(idPartido),
+      golesVisitante: isNaN(val) ? 0 : Math.max(0, val),
+    });
+  }
+
+  labelResultado(idPartido: number): string {
+    const a = this.getApuesta(idPartido);
+    if (a.golesLocal > a.golesVisitante) return 'Gana local';
+    if (a.golesVisitante > a.golesLocal) return 'Gana visitante';
+    return 'Empate';
+  }
+
+  guardarApuesta(partido: PartidoDisponible): void {
     const polla = this.pollaCreada();
     if (!polla) return;
-    navigator.clipboard.writeText(polla.codigoInvitacion).then(() => {
+
+    const a = this.getApuesta(partido.idPartido);
+    const ganador = a.golesLocal > a.golesVisitante ? 'LOCAL'
+      : a.golesVisitante > a.golesLocal ? 'VISITANTE'
+      : 'EMPATE';
+
+    this.savingId.set(partido.idPartido);
+
+    this.pollasService.registrarPronostico(polla.idPolla, partido.idPartido, {
+      golesLocal: a.golesLocal,
+      golesVisitante: a.golesVisitante,
+      ganadorPronosticado: ganador,
+    }).subscribe({
+      next: () => {
+        this.savingId.set(null);
+        const saved = new Set(this.apuestasGuardadas());
+        saved.add(partido.idPartido);
+        this.apuestasGuardadas.set(saved);
+        const errs = new Map(this.errorApuesta());
+        errs.delete(partido.idPartido);
+        this.errorApuesta.set(errs);
+      },
+      error: () => {
+        this.savingId.set(null);
+        const errs = new Map(this.errorApuesta());
+        errs.set(partido.idPartido, 'Error al guardar. Intentá de nuevo.');
+        this.errorApuesta.set(errs);
+      }
+    });
+  }
+
+  irACompartir(): void { this.step.set(3); }
+  volverAApuestas(): void { this.step.set(2); }
+
+  // ── Step 3 ──────────────────────────────────
+  copiarCodigo(): void {
+    const c = this.pollaCreada()?.codigoInvitacion;
+    if (!c) return;
+    navigator.clipboard.writeText(c).then(() => {
       this.copiado.set(true);
       setTimeout(() => this.copiado.set(false), 2000);
     });
   }
 
   copiarEnlace(): void {
-    const polla = this.pollaCreada();
-    if (!polla) return;
-    navigator.clipboard.writeText(polla.enlaceInvitacion).then(() => {
+    const e = this.pollaCreada()?.enlaceInvitacion;
+    if (!e) return;
+    navigator.clipboard.writeText(e).then(() => {
       this.enlaceCopiado.set(true);
       setTimeout(() => this.enlaceCopiado.set(false), 2000);
     });
   }
 
-  finalizar(): void {
-    const polla = this.pollaCreada();
-    if (!polla) return;
-
-    this.finalizarLoading.set(true);
-    this.finalizarError.set(null);
-    this.ganadores.set(null);
-
-    this.pollasService.finalizarPolla(polla.idPolla).subscribe({
-      next: res => {
-        this.ganadores.set(res.data);
-        this.pollaCreada.set({ ...polla, estado: 'FINALIZADA' });
-        this.finalizarLoading.set(false);
-      },
-      error: () => {
-        this.finalizarError.set('Error al finalizar la polla. Solo el administrador puede realizar esta acción.');
-        this.finalizarLoading.set(false);
-      }
-    });
+  reiniciar(): void {
+    this.pollaCreada.set(null);
+    this.partidos.set([]);
+    this.apuestasGuardadas.set(new Set());
+    this.apuestasLocales.clear();
+    this.errorApuesta.set(new Map());
+    this.step.set(1);
   }
 
-  cargarAuditoria(): void {
-    const polla = this.pollaCreada();
-    if (!polla) return;
-
-    this.auditLoading.set(true);
-    this.auditError.set(null);
-    this.auditEventos.set(null);
-
-    this.pollasService.obtenerAuditoriaDePolla(polla.idPolla).subscribe({
-      next: res => {
-        this.auditEventos.set(res.data);
-        this.auditLoading.set(false);
-      },
-      error: () => {
-        this.auditError.set('Error al cargar la auditoría. Intenta nuevamente.');
-        this.auditLoading.set(false);
-      }
-    });
+  labelFase(fase: string): string {
+    const labels: Record<string, string> = {
+      GRUPOS: 'Grupos', OCTAVOS: 'Octavos', CUARTOS: 'Cuartos',
+      SEMIFINAL: 'Semi', TERCER_PUESTO: '3er puesto', FINAL: 'Final',
+    };
+    return labels[fase] || fase;
   }
 }
