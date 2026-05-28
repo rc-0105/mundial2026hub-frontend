@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:8080/api/v1',
+  apiUrl: 'https://mundial2026hub-kqw9.onrender.com/api/v1',
 };
