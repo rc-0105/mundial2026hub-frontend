@@ -35,7 +35,7 @@ interface ApuestaLocal {
           <div class="loading">Cargando pollas...</div>
         } @else if (misPollas().length === 0) {
           <div class="empty-lista">
-            <div class="empty-icon">🏆</div>
+            <div class="trophy-visual"></div>
             <h2>Todavía no creaste ninguna polla</h2>
             <p>Creá tu primera polla, agregá tus apuestas y compartila con tus amigos.</p>
             <button class="btn-primary" (click)="abrirCrear()">+ Crear primera polla</button>
@@ -57,13 +57,11 @@ interface ApuestaLocal {
                 <div class="polla-code-row">
                   <span class="polla-code">{{ p.codigoInvitacion }}</span>
                   <button class="btn-icon-copy" (click)="copiarCodigo(p, $event)" [title]="'Copiar código'">
-                    {{ codigoCopiado() === p.idPolla ? '✓' : '⎘' }}
+                    {{ codigoCopiado() === p.idPolla ? '✓' : 'Copiar' }}
                   </button>
                 </div>
 
                 <div class="polla-fecha">Creada el {{ p.fechaCreacion | date:'dd/MM/yyyy' }}</div>
-
-                <div class="polla-footer-hint">Click para entrar →</div>
 
                 <button class="btn-link-copy" (click)="copiarEnlace(p, $event)">
                   {{ enlaceCopiado() === p.idPolla ? '✓ Enlace copiado' : 'Copiar enlace de invitación' }}
@@ -230,7 +228,7 @@ interface ApuestaLocal {
         <!-- PASO 3 -->
         @if (step() === 3) {
           <div class="step-card share-card">
-            <div class="success-icon">🎉</div>
+            <div class="success-visual"></div>
             <h1>¡Todo listo!</h1>
             <p class="subtitle">
               Polla <strong>{{ pollaCreada()?.nombre }}</strong>
@@ -281,7 +279,14 @@ interface ApuestaLocal {
       background: var(--surface); border: 1px dashed var(--border);
       border-radius: var(--radius-lg); max-width: 460px;
     }
-    .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .trophy-visual {
+      width: 3.5rem; height: 3.5rem; margin: 0 auto 1rem;
+      background: linear-gradient(135deg, #fbbf24, #d97706);
+      border-radius: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(245,158,11,0.35);
+    }
+    .trophy-visual::after { content: '★'; font-size: 1.75rem; color: white; line-height: 1; }
     .empty-lista h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
     .empty-lista p { font-size: 0.875rem; color: var(--gray-500); margin-bottom: 1.25rem; }
 
@@ -325,7 +330,6 @@ interface ApuestaLocal {
     .btn-icon-copy:hover { background: var(--primary); color: white; }
 
     .polla-fecha { font-size: 0.75rem; color: var(--gray-400); }
-    .polla-footer-hint { font-size: 0.72rem; color: var(--primary); font-weight: 600; margin-top: auto; }
 
     .btn-link-copy {
       padding: 0.5rem; background: transparent;
@@ -429,7 +433,14 @@ interface ApuestaLocal {
 
     /* Step 3 */
     .share-card { text-align: center; }
-    .success-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .success-visual {
+      width: 3.5rem; height: 3.5rem; margin: 0 auto 1rem;
+      background: linear-gradient(135deg, #34d399, #059669);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+    }
+    .success-visual::after { content: '✓'; font-size: 1.75rem; font-weight: 900; color: white; line-height: 1; }
     .share-card h1 { font-size: 1.5rem; font-weight: 800; }
     .share-desc { font-size: 0.9rem; color: var(--gray-600); margin: 1.5rem 0 0.75rem; }
     .code-box { display: inline-flex; align-items: center; gap: 0.75rem; background: var(--primary-light); border: 2px dashed var(--primary); border-radius: var(--radius-md); padding: 1rem 1.5rem; margin-bottom: 1.5rem; }

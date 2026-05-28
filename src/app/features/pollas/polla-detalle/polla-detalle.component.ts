@@ -1,5 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { PollasService } from '../../../core/services/pollas.service';
@@ -32,8 +32,24 @@ import { PollaSummary, RankingEntry, MiPronostico } from '../../../core/models/p
               </button>
             </div>
           </div>
-          <div class="polla-header-fecha">
-            Creada el {{ polla()?.fechaCreacion | date:'dd/MM/yyyy' }}
+          <div class="polla-header-right">
+            <div class="polla-header-fecha">Creada el {{ polla()?.fechaCreacion | date:'dd/MM/yyyy' }}</div>
+            @if (polla()?.esAdmin) {
+              @if (!confirmarEliminar()) {
+                <button class="btn-eliminar" (click)="confirmarEliminar.set(true)">Eliminar polla</button>
+              } @else {
+                <div class="confirmar-eliminar">
+                  <span class="confirmar-texto">¿Eliminar definitivamente?</span>
+                  <button class="btn-confirmar-si" (click)="eliminar()" [disabled]="eliminando()">
+                    {{ eliminando() ? 'Eliminando...' : 'Sí, eliminar' }}
+                  </button>
+                  <button class="btn-confirmar-no" (click)="confirmarEliminar.set(false)" [disabled]="eliminando()">Cancelar</button>
+                </div>
+              }
+              @if (errorEliminar()) {
+                <span class="error-eliminar">{{ errorEliminar() }}</span>
+              }
+            }
           </div>
         </div>
 
@@ -62,10 +78,7 @@ import { PollaSummary, RankingEntry, MiPronostico } from '../../../core/models/p
                     [class.silver]="r.posicion === 2"
                     [class.bronze]="r.posicion === 3">
                     <span class="col-pos">
-                      @if (r.posicion === 1) { 🥇 }
-                      @else if (r.posicion === 2) { 🥈 }
-                      @else if (r.posicion === 3) { 🥉 }
-                      @else { {{ r.posicion }} }
+                      <span class="pos-badge" [class.pos-1]="r.posicion===1" [class.pos-2]="r.posicion===2" [class.pos-3]="r.posicion===3">{{ r.posicion }}</span>
                     </span>
                     <span class="col-name">{{ r.nombre }}</span>
                     <span class="col-pts">{{ r.puntaje }} pts</span>
@@ -137,11 +150,43 @@ import { PollaSummary, RankingEntry, MiPronostico } from '../../../core/models/p
     .btn-back { display: inline-block; color: var(--gray-500); font-size: 0.85rem; text-decoration: none; margin-bottom: 1.5rem; transition: color 0.15s; }
     .btn-back:hover { color: var(--gray-900); }
 
-    .polla-header { margin-bottom: 2rem; }
-    .polla-header-info { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .polla-header { margin-bottom: 2rem; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .polla-header-info { display: flex; flex-direction: column; gap: 0.5rem; }
     .polla-header-info h1 { font-size: 1.5rem; font-weight: 800; margin: 0; }
     .header-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .polla-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0; }
     .polla-header-fecha { font-size: 0.78rem; color: var(--gray-400); }
+
+    .btn-eliminar {
+      padding: 0.4rem 0.9rem;
+      background: transparent; color: #dc2626;
+      border: 1px solid #fecaca; border-radius: var(--radius);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-eliminar:hover { background: #fee2e2; border-color: #dc2626; }
+
+    .confirmar-eliminar {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+      background: #fff1f2; border: 1px solid #fecaca;
+      border-radius: var(--radius); padding: 0.5rem 0.75rem;
+    }
+    .confirmar-texto { font-size: 0.8rem; font-weight: 600; color: #9f1239; }
+    .btn-confirmar-si {
+      padding: 0.3rem 0.75rem; background: #dc2626; color: white;
+      border: none; border-radius: var(--radius-sm);
+      font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-confirmar-si:hover:not(:disabled) { background: #b91c1c; }
+    .btn-confirmar-si:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-confirmar-no {
+      padding: 0.3rem 0.75rem; background: transparent; color: var(--gray-600);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-confirmar-no:hover:not(:disabled) { background: var(--gray-100); }
+    .btn-confirmar-no:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-eliminar { font-size: 0.78rem; color: #dc2626; }
 
     .estado-badge { padding: 0.15rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
     .estado-badge.activa { background: #dcfce7; color: #15803d; }
@@ -170,6 +215,15 @@ import { PollaSummary, RankingEntry, MiPronostico } from '../../../core/models/p
     .ranking-row.silver { background: #f8fafc; }
     .ranking-row.bronze { background: #fff7ed; }
     .col-pos { text-align: center; font-weight: 700; font-size: 0.9rem; }
+    .pos-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      font-size: 0.72rem; font-weight: 800;
+      background: var(--gray-200); color: var(--gray-600);
+    }
+    .pos-badge.pos-1 { background: linear-gradient(135deg, #fbbf24, #d97706); color: white; }
+    .pos-badge.pos-2 { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: white; }
+    .pos-badge.pos-3 { background: linear-gradient(135deg, #fdba74, #ea580c); color: white; }
     .col-name { font-weight: 600; color: var(--gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .col-pts { font-weight: 700; color: var(--primary-dark); text-align: center; }
     .col-prize { font-size: 0.72rem; color: var(--gray-500); text-align: center; }
@@ -203,6 +257,7 @@ import { PollaSummary, RankingEntry, MiPronostico } from '../../../core/models/p
 })
 export class PollaDetalleComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly pollasService = inject(PollasService);
 
   readonly polla = signal<PollaSummary | null>(null);
@@ -211,6 +266,10 @@ export class PollaDetalleComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly enlaceCopiado = signal(false);
+
+  readonly confirmarEliminar = signal(false);
+  readonly eliminando = signal(false);
+  readonly errorEliminar = signal<string | null>(null);
 
   ngOnInit(): void {
     const idPolla = Number(this.route.snapshot.paramMap.get('id'));
@@ -239,6 +298,21 @@ export class PollaDetalleComponent implements OnInit {
     navigator.clipboard.writeText(url).then(() => {
       this.enlaceCopiado.set(true);
       setTimeout(() => this.enlaceCopiado.set(false), 2000);
+    });
+  }
+
+  eliminar(): void {
+    const idPolla = this.polla()?.idPolla;
+    if (!idPolla) return;
+    this.eliminando.set(true);
+    this.errorEliminar.set(null);
+    this.pollasService.eliminarPolla(idPolla).subscribe({
+      next: () => this.router.navigate(['/pollas']),
+      error: (err) => {
+        this.eliminando.set(false);
+        this.confirmarEliminar.set(false);
+        this.errorEliminar.set(err?.error?.message ?? 'No se pudo eliminar la polla.');
+      }
     });
   }
 

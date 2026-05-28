@@ -10,7 +10,7 @@ import { NotificacionesService } from '../../core/services/notificaciones.servic
     <nav class="navbar">
       <div class="nav-inner">
         <a routerLink="/agenda" class="nav-brand" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-          <span class="brand-icon">🏆</span>
+          <span class="brand-icon">M26</span>
           <span class="brand-text">Mundial 2026 Hub</span>
         </a>
         <div class="nav-links">
@@ -67,7 +67,17 @@ import { NotificacionesService } from '../../core/services/notificaciones.servic
       text-decoration: none;
     }
     .brand-icon {
-      font-size: 1.4rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      padding: 0.25rem 0.55rem;
+      border-radius: 0.4rem;
+      line-height: 1;
     }
     .nav-links {
       display: flex;

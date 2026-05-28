@@ -56,4 +56,8 @@ export class PollasService {
       `${environment.apiUrl}/pollas/${idPolla}/finalizar`, {}
     );
   }
+
+  eliminarPolla(idPolla: number): Observable<ApiResponse<unknown>> {
+    return this.http.delete<ApiResponse<unknown>>(`${environment.apiUrl}/pollas/${idPolla}`);
+  }
 }

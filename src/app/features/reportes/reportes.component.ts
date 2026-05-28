@@ -68,10 +68,7 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
                 @for (e of entries; track e.idUsuario; let i = $index) {
                   <tr>
                     <td class="col-pos">
-                      @if (i === 0) { <span class="medal">🥇</span> }
-                      @else if (i === 1) { <span class="medal">🥈</span> }
-                      @else if (i === 2) { <span class="medal">🥉</span> }
-                      @else { {{ i + 1 }} }
+                      <span class="pos-badge" [class.pos-1]="i===0" [class.pos-2]="i===1" [class.pos-3]="i===2">{{ i + 1 }}</span>
                     </td>
                     <td class="col-name">{{ e.nombre }}</td>
                     <td class="col-email">{{ e.correo }}</td>
@@ -337,7 +334,15 @@ import { ReportesService, ReporteAdopcion, RankingGeneralEntry, PartidoMasAposta
     .col-count { color: var(--primary-dark); }
     .col-pct { text-align: center; width: 100px; }
     .col-periodo { font-weight: 600; color: var(--gray-800); }
-    .medal { font-size: 1.2rem; }
+    .pos-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: 50%;
+      font-size: 0.72rem; font-weight: 800;
+      background: var(--gray-200); color: var(--gray-600);
+    }
+    .pos-badge.pos-1 { background: linear-gradient(135deg, #fbbf24, #d97706); color: white; }
+    .pos-badge.pos-2 { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: white; }
+    .pos-badge.pos-3 { background: linear-gradient(135deg, #fdba74, #ea580c); color: white; }
     .badge-fase { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.7rem; font-weight: 700; border-radius: var(--radius-sm); background: #dbeafe; color: #1e40af; text-transform: uppercase; letter-spacing: 0.04em; }
     .aciertos-summary { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: var(--radius); }
     .summary-item { display: flex; flex-direction: column; align-items: center; }
