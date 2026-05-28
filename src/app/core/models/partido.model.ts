@@ -14,12 +14,14 @@ export interface Partido {
   idPartido: number;
   seleccionLocal: SeleccionInfo;
   seleccionVisitante: SeleccionInfo;
-  marcadorLocal: number | null;
-  marcadorVisitante: number | null;
+  golesLocal: number | null;
+  golesVisitante: number | null;
   estado: 'PROGRAMADO' | 'EN_JUEGO' | 'FINALIZADO';
-  estadio: EstadioInfo;
+  estadio: string;
+  ciudad: string;
   fase: string;
   fecha: string;
+  fechaHoraLocalizada?: string;
 }
 
 export interface PartidoApiResponse {

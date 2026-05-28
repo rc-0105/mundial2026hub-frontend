@@ -51,9 +51,9 @@ import { Partido } from '../../core/models/partido.model';
                   @if (p.estado === 'PROGRAMADO') {
                     <span class="vs">VS</span>
                   } @else {
-                    <span class="score-val">{{ p.marcadorLocal ?? '-' }}</span>
+                    <span class="score-val">{{ p.golesLocal ?? '-' }}</span>
                     <span class="score-sep">-</span>
-                    <span class="score-val">{{ p.marcadorVisitante ?? '-' }}</span>
+                    <span class="score-val">{{ p.golesVisitante ?? '-' }}</span>
                   }
                 </div>
                 <div class="team team-visitante" [class.team-favorita]="esFavorita(p.seleccionVisitante.idSeleccion)">
@@ -62,7 +62,7 @@ import { Partido } from '../../core/models/partido.model';
               </div>
               <div class="match-info">
                 <span>{{ p.fecha | date:'dd/MM/yyyy HH:mm' }}</span>
-                <span>{{ p.estadio.nombre }}, {{ p.estadio.ciudad }}</span>
+                <span>{{ p.estadio }}, {{ p.ciudad }}</span>
               </div>
               <div class="match-actions">
                 @if (p.estado === 'FINALIZADO' || p.estado === 'EN_JUEGO') {
@@ -151,8 +151,7 @@ export class AgendaComponent implements OnInit, OnDestroy {
     return todos.filter(p =>
       this.seleccionIds.includes(p.seleccionLocal.idSeleccion ?? -1) ||
       this.seleccionIds.includes(p.seleccionVisitante.idSeleccion ?? -1) ||
-      this.estadioIds.includes(p.estadio.idEstadio ?? -1) ||
-      this.ciudadNombres.includes(p.estadio.ciudad)
+      this.ciudadNombres.includes(p.ciudad)
     );
   }
 
