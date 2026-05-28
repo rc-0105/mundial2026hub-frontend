@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { PollasService } from '../../core/services/pollas.service';
 import { Polla, PollaSummary, PartidoDisponible } from '../../core/models/polla.model';
 
@@ -15,7 +15,7 @@ interface ApuestaLocal {
 
 @Component({
   selector: 'app-pollas',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, RouterLink],
   template: `
     <div class="page-container">
 
@@ -43,7 +43,10 @@ interface ApuestaLocal {
         } @else {
           <div class="pollas-grid">
             @for (p of misPollas(); track p.idPolla) {
-              <div class="polla-card" [class.finalizada]="p.estado === 'FINALIZADA'">
+              <div class="polla-card" [class.finalizada]="p.estado === 'FINALIZADA'"
+                   (click)="navegarAPolla(p.idPolla)" role="button" tabindex="0"
+                   (keydown.enter)="navegarAPolla(p.idPolla)">
+
                 <div class="polla-card-header">
                   <h3 class="polla-nombre">{{ p.nombre }}</h3>
                   <span class="estado-badge" [class.activa]="p.estado === 'ACTIVA'" [class.fin]="p.estado === 'FINALIZADA'">
@@ -53,23 +56,42 @@ interface ApuestaLocal {
 
                 <div class="polla-code-row">
                   <span class="polla-code">{{ p.codigoInvitacion }}</span>
-                  <button class="btn-icon-copy" (click)="copiarCodigo(p)" [title]="'Copiar código'">
+                  <button class="btn-icon-copy" (click)="copiarCodigo(p, $event)" [title]="'Copiar código'">
                     {{ codigoCopiado() === p.idPolla ? '✓' : '⎘' }}
                   </button>
                 </div>
 
                 <div class="polla-fecha">Creada el {{ p.fechaCreacion | date:'dd/MM/yyyy' }}</div>
 
-                <div class="polla-actions">
-                  <a [routerLink]="['/pollas', p.idPolla]" class="btn-entrar">Entrar →</a>
-                  <button class="btn-link-copy" (click)="copiarEnlace(p)">
-                    {{ enlaceCopiado() === p.idPolla ? '✓ Copiado' : 'Copiar enlace' }}
-                  </button>
-                </div>
+                <div class="polla-footer-hint">Click para entrar →</div>
+
+                <button class="btn-link-copy" (click)="copiarEnlace(p, $event)">
+                  {{ enlaceCopiado() === p.idPolla ? '✓ Enlace copiado' : 'Copiar enlace de invitación' }}
+                </button>
               </div>
             }
           </div>
         }
+
+        <!-- Unirse a polla ajena -->
+        <div class="unirse-section">
+          <h2 class="unirse-title">¿Tenés un código de invitación?</h2>
+          <p class="unirse-desc">Ingresá el código para unirte a la polla de otra persona.</p>
+          <div class="unirse-form">
+            <input type="text" [(ngModel)]="codigoUnirse" [ngModelOptions]="{standalone: true}"
+              placeholder="Ej: POLLA-A3F2" class="unirse-input"
+              (keydown.enter)="unirse()" />
+            <button class="btn-primary" (click)="unirse()" [disabled]="loadingUnirse() || !codigoUnirse.trim()">
+              {{ loadingUnirse() ? 'Uniéndose...' : 'Unirse' }}
+            </button>
+          </div>
+          @if (errorUnirse()) {
+            <div class="error" style="margin-top:0.5rem;">{{ errorUnirse() }}</div>
+          }
+          @if (exitoUnirse()) {
+            <div class="success-msg">✓ Te uniste a la polla correctamente.</div>
+          }
+        </div>
       }
 
       <!-- ════════════════════════════════════════
@@ -272,9 +294,11 @@ interface ApuestaLocal {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-lg); padding: 1.25rem;
       display: flex; flex-direction: column; gap: 0.75rem;
-      transition: box-shadow 0.15s;
+      cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
+      outline: none;
     }
-    .polla-card:hover { box-shadow: var(--shadow); }
+    .polla-card:hover { box-shadow: var(--shadow); border-color: var(--primary); }
+    .polla-card:focus-visible { box-shadow: 0 0 0 3px var(--primary-light); border-color: var(--primary); }
     .polla-card.finalizada { opacity: 0.75; }
 
     .polla-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
@@ -301,22 +325,37 @@ interface ApuestaLocal {
     .btn-icon-copy:hover { background: var(--primary); color: white; }
 
     .polla-fecha { font-size: 0.75rem; color: var(--gray-400); }
+    .polla-footer-hint { font-size: 0.72rem; color: var(--primary); font-weight: 600; margin-top: auto; }
 
-    .polla-actions { margin-top: auto; display: flex; gap: 0.5rem; }
-    .btn-entrar {
-      flex: 1; padding: 0.5rem; background: var(--primary);
-      color: white; border: none; border-radius: var(--radius);
-      font-size: 0.82rem; font-weight: 700; cursor: pointer;
-      text-align: center; text-decoration: none; transition: background 0.15s;
-    }
-    .btn-entrar:hover { background: var(--primary-dark); }
     .btn-link-copy {
-      flex: 1; padding: 0.5rem; background: transparent;
-      color: var(--primary); border: 1px solid var(--primary);
-      border-radius: var(--radius); font-size: 0.82rem; font-weight: 600;
-      cursor: pointer; transition: all 0.15s;
+      padding: 0.5rem; background: transparent;
+      color: var(--gray-500); border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; text-align: center;
     }
-    .btn-link-copy:hover { background: var(--primary-light); }
+    .btn-link-copy:hover { background: var(--gray-50); color: var(--gray-700); }
+
+    /* Unirse */
+    .unirse-section {
+      margin-top: 2.5rem; padding-top: 2rem;
+      border-top: 1px solid var(--border); max-width: 480px;
+    }
+    .unirse-title { font-size: 1rem; font-weight: 700; color: var(--gray-900); margin: 0 0 0.25rem; }
+    .unirse-desc { font-size: 0.85rem; color: var(--gray-500); margin: 0 0 1rem; }
+    .unirse-form { display: flex; gap: 0.5rem; }
+    .unirse-input {
+      flex: 1; padding: 0.55rem 0.85rem;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: 0.9rem; font-family: 'Courier New', monospace; font-weight: 700;
+      color: var(--gray-900); background: var(--surface); letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .unirse-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+    .success-msg {
+      margin-top: 0.5rem; padding: 0.5rem 0.85rem;
+      background: #dcfce7; color: #15803d; border-radius: var(--radius);
+      font-size: 0.85rem; font-weight: 600;
+    }
 
     /* ── Crear / Steps ── */
     .crear-topbar { margin-bottom: 1.5rem; }
@@ -412,6 +451,7 @@ interface ApuestaLocal {
 })
 export class PollasComponent implements OnInit {
   private readonly pollasService = inject(PollasService);
+  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
   readonly form = this.fb.nonNullable.group({
@@ -424,6 +464,12 @@ export class PollasComponent implements OnInit {
   readonly loadingLista = signal(true);
   readonly codigoCopiado = signal<number | null>(null);
   readonly enlaceCopiado = signal<number | null>(null);
+
+  // Unirse
+  codigoUnirse = '';
+  readonly loadingUnirse = signal(false);
+  readonly errorUnirse = signal<string | null>(null);
+  readonly exitoUnirse = signal(false);
 
   // Creación
   readonly step = signal<StepCrear>(1);
@@ -458,6 +504,10 @@ export class PollasComponent implements OnInit {
     });
   }
 
+  navegarAPolla(idPolla: number): void {
+    this.router.navigate(['/pollas', idPolla]);
+  }
+
   abrirCrear(): void {
     this.resetCrear();
     this.vista.set('crear');
@@ -468,17 +518,41 @@ export class PollasComponent implements OnInit {
     this.cargarMisPollas();
   }
 
-  copiarCodigo(p: PollaSummary): void {
+  copiarCodigo(p: PollaSummary, event: Event): void {
+    event.stopPropagation();
     navigator.clipboard.writeText(p.codigoInvitacion).then(() => {
       this.codigoCopiado.set(p.idPolla);
       setTimeout(() => this.codigoCopiado.set(null), 2000);
     });
   }
 
-  copiarEnlace(p: PollaSummary): void {
+  copiarEnlace(p: PollaSummary, event: Event): void {
+    event.stopPropagation();
     navigator.clipboard.writeText(p.enlaceInvitacion).then(() => {
       this.enlaceCopiado.set(p.idPolla);
       setTimeout(() => this.enlaceCopiado.set(null), 2000);
+    });
+  }
+
+  unirse(): void {
+    const codigo = this.codigoUnirse.trim().toUpperCase();
+    if (!codigo) return;
+    this.loadingUnirse.set(true);
+    this.errorUnirse.set(null);
+    this.exitoUnirse.set(false);
+
+    this.pollasService.unirseAPolla(codigo).subscribe({
+      next: () => {
+        this.loadingUnirse.set(false);
+        this.exitoUnirse.set(true);
+        this.codigoUnirse = '';
+        setTimeout(() => this.exitoUnirse.set(false), 4000);
+      },
+      error: (err) => {
+        this.loadingUnirse.set(false);
+        const msg = err?.error?.message ?? 'Código inválido o polla inactiva.';
+        this.errorUnirse.set(msg);
+      }
     });
   }
 
